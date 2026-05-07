@@ -114,6 +114,17 @@ case "$( uname )" in                #(
   NONSTOP* )        nonstop=true ;;
 esac
 
+# If JAVA_HOME is not configured, use project-local JDK 21 when available.
+if [ -z "$JAVA_HOME" ] ; then
+    for candidate in "$APP_HOME"/.jdks/jdk-21* ; do
+        if [ -d "$candidate" ] ; then
+            JAVA_HOME=$candidate
+            export JAVA_HOME
+            break
+        fi
+    done
+fi
+
 
 
 # Determine the Java command to use to start the JVM.

@@ -35,7 +35,9 @@ out/
 
 ### VS Code ###
 .vscode/
+.cursor/
 
 /data/
 
 .env
+.jdks/
