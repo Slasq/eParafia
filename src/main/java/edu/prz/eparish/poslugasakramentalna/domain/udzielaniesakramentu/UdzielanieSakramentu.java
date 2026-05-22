@@ -1,12 +1,13 @@
 package edu.prz.eparish.poslugasakramentalna.domain.udzielaniesakramentu;
 
-import edu.prz.eparish.duszpasterstwowiernych.domain.parafianin.Parafianin;
-import edu.prz.eparish.poslugasakramentalna.domain.ksiadz.Ksiadz;
-import edu.prz.eparish.poslugasakramentalna.domain.sakrament.Sakrament;
+import edu.prz.eparish.duszpasterstwowiernych.domain.parafianin.ParafianinId;
+import edu.prz.eparish.poslugasakramentalna.domain.ksiadz.KsiadzId;
+import edu.prz.eparish.poslugasakramentalna.domain.sakrament.SakramentId;
+import jakarta.persistence.AttributeOverride;
+import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.LocalDate;
 import lombok.Data;
@@ -21,15 +22,15 @@ public class UdzielanieSakramentu {
 
   LocalDate dataUdzielenia;
 
-  @ManyToOne
-  @JoinColumn(name = "parafianin_id")
-  Parafianin parafianin;
+  @Embedded
+  @AttributeOverride(name = "wartosc", column = @Column(name = "parafianin_id"))
+  ParafianinId parafianinId;
 
-  @ManyToOne
-  @JoinColumn(name = "ksiadz_id")
-  Ksiadz ksiadz;
+  @Embedded
+  @AttributeOverride(name = "wartosc", column = @Column(name = "ksiadz_id"))
+  KsiadzId ksiadzId;
 
-  @ManyToOne
-  @JoinColumn(name = "sakrament_id")
-  Sakrament sakrament;
+  @Embedded
+  @AttributeOverride(name = "wartosc", column = @Column(name = "sakrament_id"))
+  SakramentId sakramentId;
 }
