@@ -1,0 +1,32 @@
+info:
+  name: Add Intention
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: http://localhost:8080/api/intentions
+  body:
+    type: json
+    data: |-
+      {
+        "content": "For the health and blessing of the Kowalski family",
+        "date": "2026-05-30",
+        "donor": "Jan Kowalski",
+        "eventId": 1
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("Status code is 201", function() {
+            expect(res.getStatus()).to.equal(201);
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

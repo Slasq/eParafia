@@ -1,0 +1,31 @@
+info:
+  name: Create Group
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: http://localhost:8080/api/groups
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Oaza Mlodziezowa",
+        "description": "Grupa spotykajaca sie w piatki o 18:00 w salce",
+        "supervisor": "Michal Nowak"
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("Status code is 201", function() {
+            expect(res.getStatus()).to.equal(201);
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

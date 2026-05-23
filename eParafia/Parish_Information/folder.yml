@@ -1,0 +1,7 @@
+info:
+  name: Parish_Information
+  type: folder
+  seq: 2
+
+request:
+  auth: inherit
