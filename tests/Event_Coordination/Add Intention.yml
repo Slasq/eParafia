@@ -1,7 +1,7 @@
 info:
   name: Add Intention
   type: http
-  seq: 1
+  seq: 2
 
 http:
   method: POST
@@ -23,6 +23,11 @@ runtime:
       code: |-
         test("Status code is 201", function() {
             expect(res.getStatus()).to.equal(201);
+        });
+        test("Response contains intention id", function() {
+            const body = res.getBody();
+            expect(body).to.have.property("id");
+            expect(body.eventId).to.equal(1);
         });
 
 settings:

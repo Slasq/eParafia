@@ -3,6 +3,7 @@ package edu.prz.eparish.koordynacjawydarzen.domain.wydarzenie;
 import edu.prz.eparish.koordynacjawydarzen.domain.typwydarzenia.TypWydarzenia;
 import edu.prz.eparish.koordynacjawydarzen.domain.harmonogram.Harmonogram;
 import edu.prz.eparish.informacjeoparafii.domain.parafia.Parafia;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
@@ -20,6 +21,8 @@ public class WydarzenieParafialne {
   Long id;
 
   String nazwa;
+
+  @Column(name = "data_i_godzina")
   LocalDateTime dataIGodzina;
   String miejsce;
   String opis;

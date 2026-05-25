@@ -4,6 +4,7 @@ System obsługi parafii — projekt zespołowy (PRz, Inżynieria i analiza danyc
 Backend: **Java 26**, **Spring Boot 4**, **JPA**, baza **H2**, API **REST**.
 
 Pełna dokumentacja analityczna: [`docs/docs.md`](docs/docs.md)  
+**Przekazanie projektu (handoff):** [`handoff.md`](handoff.md)  
 Repozytorium GitHub: https://github.com/Slasq/eParafia
 
 ---
@@ -176,6 +177,14 @@ Kolekcja w katalogu [`tests/`](tests/). Narzędzie: [Bruno](https://www.usebruno
 3. Uruchom żądania w podfolderach (np. `Pastoral Care/Add Family`).
 
 Każdy test zakłada działający serwer na `http://localhost:8080`.
+
+**Ważne:** testy `Add Intention` i `Add Announcement` wymagają wydarzenia `id=1` z `data.sql`. Jeśli dostajesz **404**, zatrzymaj aplikację, usuń folder `data/` w katalogu projektu i uruchom ponownie (świeża baza). Najpierw uruchom `Event_Coordination/List Events` — sprawdzi, czy seed jest poprawny.
+
+Testy automatyczne (Gradle, te same scenariusze co Bruno):
+
+```powershell
+.\gradlew.bat test
+```
 
 Wytyczne testera: [`docs/wytyczne_do_testów.md`](docs/wytyczne_do_testów.md).
 
