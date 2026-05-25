@@ -1,0 +1,32 @@
+info:
+  name: Register Sacrament
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: http://localhost:8080/api/sacrament-administrations
+  body:
+    type: json
+    data: |-
+      {
+        "administrationDate": "2026-05-25",
+        "parishionerId": 1,
+        "priestId": 1,
+        "sacramentId": 1
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("Status code is 201", function() {
+            expect(res.getStatus()).to.equal(201);
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

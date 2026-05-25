@@ -25,3 +25,18 @@ INSERT INTO grupa_parafialna (id, nazwa, opis, opiekun)
 VALUES
 (1, 'Ministranci', 'Sluzba liturgiczna oltarza', 'Michal Nowak'),
 (2, 'Schola', 'Oprawa muzyczna, spiew mlodziezowy', 'Anna Wisniewska');
+
+INSERT INTO sakrament (id, nazwa, opis)
+VALUES
+(1, 'Chrzest', 'Przyjecie do wspolnoty Kosciola'),
+(2, 'Bierzmowanie', 'Umacnianie w wierze'),
+(3, 'Malzenstwo', 'Zwiazek malzenski');
+
+INSERT INTO ksiadz (id, imie, nazwisko, telefon, email, data_swiecen, funkcja, parafia_id)
+VALUES (1, 'Adam', 'Nowak', '111222333', 'adam.nowak@parafia.pl', '2010-06-15', 'Proboszcz', 1);
+
+INSERT INTO rodzina (id, nazwisko_rodziny, liczba_czlonkow)
+VALUES (1, 'Kowalscy', 3);
+
+INSERT INTO parafianin (id, imie, nazwisko, pesel, data_urodzenia, telefon, email, parafia_id, rodzina_id)
+VALUES (1, 'Jan', 'Kowalski', '90010112345', '1990-01-01', '600700800', 'jan.kowalski@example.com', 1, 1);
