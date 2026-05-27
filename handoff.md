@@ -16,23 +16,24 @@ Dokument dla zespołu przejmującego dalszą pracę. Ostatnia aktualizacja stanu
 ## 1. Co to jest
 
 Backend **REST** do zarządzania parafią: wierni, wydarzenia, grupy, personel, sakramenty itd.  
-**Front nie jest wymagany** w `docs/docs.md` — wystarczą API + Bruno + ewentualnie H2 Console na demo.
+**Front nie jest wymagany** — wystarczą API + Bruno + H2 Console na demo.
 
-Stack: **Java 26**, **Spring Boot 4.0.6**, **JPA/Hibernate**, **H2** (plik), **Lombok**, **Gradle 9.4**.
+Stack: **Java 26**, **Spring Boot 4.0.6**, **JPA/Hibernate 7**, **H2** (plik), **Lombok**, **Gradle 9.4**, **springdoc-openapi 2.8.9**.
 
 ---
 
-## 2. Szybki start (dla nowej osoby)
+## 2. Szybki start
 
 ```powershell
 cd ścieżka\do\eParafia
-# JDK 26 — Project Structure / Gradle JVM w IntelliJ
 .\gradlew.bat bootRun
 ```
 
-- Aplikacja: http://localhost:8080  
-- Indeks API: http://localhost:8080/  
-- H2: http://localhost:8080/h2-console → JDBC `jdbc:h2:file:./data/eparish`, user `sa`, hasło puste  
+| URL | Opis |
+|-----|------|
+| http://localhost:8080/ | JSON z listą wszystkich use-cases |
+| http://localhost:8080/swagger-ui/index.html | Interaktywna dokumentacja API |
+| http://localhost:8080/h2-console | Konsola H2 — JDBC `jdbc:h2:file:./data/eparish`, user `sa`, hasło puste |
 
 **Testy automatyczne:**
 
@@ -44,214 +45,278 @@ cd ścieżka\do\eParafia
 
 ### Ważne: świeża baza
 
-Jeśli testy intencji/ogłoszeń zwracają **404** („Wydarzenie nie istnieje”):
+Jeśli testy Bruno lub JUnit zwracają **404**:
 
-1. Zatrzymaj aplikację.  
-2. Usuń folder **`data/`** w katalogu projektu.  
-3. Uruchom ponownie — `data.sql` załaduje seed (m.in. **wydarzenie id=1**).  
+1. Zatrzymaj aplikację.
+2. Usuń folder **`data/`** w katalogu projektu.
+3. Uruchom ponownie — `data.sql` załaduje pełny seed (diecezja, parafia, harmonogram, **wydarzenie id=1**, grupy, sakramenty, ksiądz, rodzina, parafianin).
 
 W Bruno najpierw odpal **`Event_Coordination/List Events`** — sprawdza, czy seed jest OK.
 
 ---
 
-## 3. Co jest już zrobione
+## 3. Architektura
 
-### Backend
+Projekt stosuje **Domain-Driven Design (DDD)** z czystym podziałem warstw:
+
+```
+HTTP Request
+    ↓
+Controller        ← tylko mapowanie request/response, zero logiki
+    ↓
+Service           ← przypadki użycia, walidacja, orkiestracja
+    ↓
+Factory           ← tworzenie obiektów domenowych (new + EntityIds.nextId)
+    ↓
+Repository (JPA)  ← persystencja
+```
+
+### Konteksty domenowe
+
+| Pakiet | Serwis | Fabryka | Agregat |
+|--------|--------|---------|---------|
+| `koordynacjawydarzen` | `EventCoordinationService` | `EventFactory` | `WydarzenieAgregat` *(złożony)* |
+| `informacjeoparafii` | `ParishInformationService` | `ParishInfoFactory` | `ParafianinAgregat` |
+| `duszpasterstwowiernych` | `PastoralCareService` | `PastoralCareFactory` | — |
+| `grupyparafialne` | `ParishGroupService` | `ParishGroupFactory` | `GrupaParafialnaAgregat` |
+| `organizacjarolizadan` | `ParishOperationsService` | `StaffFactory` | — |
+| `poslugasakramentalna` | `SacramentalMinistryService` | `SacramentalMinistryFactory` | — |
+
+### Agregaty domenowe
+
+| Agregat | Encje składowe | Endpoint |
+|---------|---------------|----------|
+| `WydarzenieAgregat` *(złożony)* | WydarzenieParafialne + Intencja + Ogloszenie + Ofiara + Uczestnik + Organizator | `GET /api/events/{id}/aggregate` |
+| `ParafianinAgregat` | Parafianin + Kartoteka + Dokument | `GET /api/parishioners/{id}/aggregate` |
+| `GrupaParafialnaAgregat` | GrupaParafialna + Czlonkostwo | `GET /api/groups/{id}/aggregate` |
+
+### Reguły architektury (ważne!)
+
+- **Fabryki** (`*Factory.java`) — tylko tworzą obiekty domenowe (`new` + `setId` przez `EntityIds.nextId()`), **nigdy nie zapisują** do bazy.
+- **Serwisy** (`*Service.java`) — wywołują fabrykę, następnie `repo.save()`, zawierają całą logikę biznesową.
+- **Kontrolery** (`api/*.java`) — cienkie delegaty: przyjmują request record → wywołują metodę serwisu → zwracają response record. **Żadnej logiki**.
+- **Agregaty** (`domain/*/Agregat.java`) — POJO (nie encje JPA), budowane w serwisach z wielu repozytoriów; zawierają obliczenia domenowe.
+- **EntityIds** (`api/support/EntityIds.java`) — `nextId(repo, getter)` zwraca `max(id) + 1`. Wywoływany wyłącznie z fabryk.
+
+---
+
+## 4. Co jest już zrobione
+
+### Backend — komplet
 
 | Obszar | Status |
 |--------|--------|
-| ~24 encje JPA w pakietach DDD | ✅ |
-| Repozytoria Spring Data | ✅ |
-| 6 kontrolerów REST w `edu.prz.eparish.api` | ✅ |
-| `data.sql` — dane startowe | ✅ |
-| `GET /` — JSON z podpowiedzią API (koniec Whitelabel 404) | ✅ |
-| Helper `api/support/EntityIds.java` (generowanie ID) | ✅ |
-| `@Column` na `WydarzenieParafialne.dataIGodzina` (zgodność z `data.sql`) | ✅ |
+| 24 encje JPA w pakietach DDD | ✅ |
+| Repozytoria Spring Data (JpaRepository) | ✅ |
+| 6 klas serwisów (`application/`) | ✅ |
+| 6 klas fabryk (`application/`) | ✅ |
+| 6 kontrolerów REST w `api/` | ✅ |
+| 3 agregaty domenowe z metodami | ✅ |
+| 20 przypadków użycia zaimplementowanych | ✅ |
+| PUT / DELETE na kluczowych zasobach | ✅ |
+| Swagger UI (`/swagger-ui/index.html`) | ✅ działający na Java 26 |
+| `OpenApiConfig` z pełną dokumentacją UC | ✅ |
+| `data.sql` — pełny seed | ✅ |
+| `EntityIds` — helper generowania ID | ✅ |
+| Pole `status` na `Obowiazek` (ASSIGNED/COMPLETED) | ✅ |
+| Pole `status` na `Intencja` (PLANNED/REALIZED) | ✅ |
 
-**Kontrolery:**
+### Serwisy i przypadki użycia
 
-| Plik | Odpowiedzialność |
-|------|------------------|
-| `HomeController` | `GET /` |
-| `PastoralCareController` | rodziny, grupy, członkostwa, adresy rodzin |
-| `ParishOperationsController` | pracownicy, stanowiska, obowiązki, intencje, ogłoszenia |
-| `ParishInformationController` | diecezje, miejscowości, parafie, parafianie, kartoteki, dokumenty |
-| `EventCoordinationController` | wydarzenia, harmonogramy, ofiary, uczestnicy, organizatorzy |
-| `SacramentalMinistryController` | księża, sakramenty, udzielenia sakramentów |
+| Serwis | UC (metody) |
+|--------|------------|
+| `EventCoordinationService` | createEvent, updateEvent, deleteEvent, assignIntention, **realizeIntention**, addAnnouncement, recordOffering, assignParticipant, assignOrganizer, getEventAggregate |
+| `ParishInformationService` | addDiocese, updateDiocese, addLocality, addParish, updateParish, registerParishioner, updateParishioner, deleteParishioner, createRecord, updateRecord, addDocument, getParishionerAggregate |
+| `PastoralCareService` | addFamily, updateFamilyName, assignParishionerToFamily, addFamilyAddress, updateFamilyAddress |
+| `ParishGroupService` | createGroup, updateGroup, addMembership, terminateMembership, getGroupAggregate |
+| `ParishOperationsService` | addEmployee, addPosition, assignDuty, **completeDuty** |
+| `SacramentalMinistryService` | addPriest, addSacrament, registerSacrament |
 
-Brak: **PUT**, **DELETE**, warstwa **serwisów**, **walidacja** (`@Valid`), **OpenAPI**.
+### Metody domenowe agregatów
+
+**WydarzenieAgregat** (złożony):
+- `totalOfferings()` — suma złożonych ofiar
+- `realizedIntentionCount()` / `plannedIntentionCount()` — intencje wg statusu
+- `totalEngaged()` — uczestnicy + organizatorzy łącznie
+- `announcementCount()` — liczba ogłoszeń
+- `isIntentionAlreadyAssigned(String)` / `hasOrganizer()` — walidacja
+
+**ParafianinAgregat**:
+- `hasRecord()`, `documentCount()`, `hasDocumentOfType(String)`, `documentsOfType(String)`, `isProfileComplete()`
+
+**GrupaParafialnaAgregat**:
+- `totalMemberCount()`, `activeMembers()`, `activeMembersAt(LocalDate)`, `isMember(Long)`, `formerMembers()`
 
 ### Testy
 
 | Artefakt | Status |
 |----------|--------|
-| `EparishApplicationTests` | ✅ `contextLoads` (profil `test`) |
-| `ApiIntegrationTest` | ✅ 9 scenariuszy zgodnych z Bruno |
-| `application-test.properties` | ✅ H2 in-memory, `create-drop` |
-| Kolekcja Bruno w `tests/` | ✅ 8 requestów (patrz §5) |
+| `EparishApplicationTests` | ✅ contextLoads |
+| `ApiIntegrationTest` | ✅ 9 scenariuszy |
+| Profil testowy `application-test.properties` | ✅ H2 in-memory, create-drop |
+| Kolekcja Bruno w `tests/` | ✅ 8 requestów |
 
 ### Dokumentacja
 
 | Plik | Status |
 |------|--------|
-| `README.md` | ✅ uruchomienie + API |
-| `docs/docs.md` §2 Analiza | ✅ |
-| `docs/docs.md` §3–5, §6.1 | ❌ puste — do uzupełnienia |
+| `README.md` | ✅ pełna (architektura, API, JSON przykłady) |
+| `docs/docs.md` §1–2 | ✅ |
+| `docs/docs.md` §3–5 | ❌ do uzupełnienia przez zespół |
 | `handoff.md` | ✅ ten plik |
 
 ---
 
-## 4. Dane startowe (`data.sql`)
+## 5. Dane startowe (`data.sql`)
 
-Po świeżym starcie dostępne m.in.:
+Po świeżym starcie dostępne:
 
 | ID | Zasób |
-|----|--------|
-| 1 | diecezja, parafia, stanowiska 1–2, typy wydarzeń, harmonogram, **wydarzenie**, grupy, sakramenty, ksiądz, rodzina, parafianin |
+|----|-------|
+| 1 | diecezja, parafia, stanowiska (1–2), typy wydarzeń, harmonogram, **wydarzenie**, grupy (1–2), sakramenty (1–7), ksiądz, rodzina, parafianin |
 
-Testy Bruno **Add Intention** / **Add Announcement** wymagają **`eventId: 1`**.  
-**Register Sacrament** wymaga `parishionerId`, `priestId`, `sacramentId` = 1.  
-**Add Employee** wymaga `parishId: 1`, `positionId: 1`.
-
----
-
-## 5. Kolekcja Bruno (`tests/`)
-
-| Folder | Plik | Metoda | Uwagi |
-|--------|------|--------|--------|
-| Event_Coordination | List Events | GET | **Uruchamiać pierwszy** — walidacja seeda |
-| Event_Coordination | Add Intention | POST | `eventId: 1` |
-| Event_Coordination | Add Announcement | POST | `eventId: 1` |
-| Pastoral_Care | Add Family | POST | |
-| Parish_Groups | Create Group | POST | |
-| Staff_Management | Add Employee | POST | |
-| Sacramental_Ministry | Register Sacrament | POST | ids = 1 |
-| Parish_Information | List Parishes | GET | |
-
-**Brakuje requestów Bruno** dla wielu nowych endpointów (memberships, offerings, documents, duties, POST events itd.) — do dopisania przez testera.
+Kluczowe zależności w testach:
+- **Add Intention / Add Announcement** → wymagają `eventId: 1`
+- **Register Sacrament** → `parishionerId: 1`, `priestId: 1`, `sacramentId: 1`
+- **Add Employee** → `parishId: 1`, `positionId: 1`
 
 ---
 
-## 6. Mapowanie 5 przypadków użycia (szkic do dokumentacji)
+## 6. Kolekcja Bruno (`tests/`)
 
-Wymaganie projektu: **5 zaimplementowanych UC**. Propozycja powiązania z API (do wpisania w `docs/docs.md` §4):
+| Folder | Request | Metoda |
+|--------|---------|--------|
+| Event_Coordination | List Events | GET — **uruchamiać pierwszy** |
+| Event_Coordination | Add Intention | POST |
+| Event_Coordination | Add Announcement | POST |
+| Pastoral_Care | Add Family | POST |
+| Parish_Groups | Create Group | POST |
+| Staff_Management | Add Employee | POST |
+| Sacramental_Ministry | Register Sacrament | POST |
+| Parish_Information | List Parishes | GET |
 
-| # | Przypadek użycia (biznes) | Endpoint(y) |
-|---|---------------------------|-------------|
-| 1 | Dodanie rodziny / opieka duszpasterska | `POST /api/families` |
-| 2 | Utworzenie grupy parafialnej | `POST /api/groups` |
-| 3 | Dodanie pracownika parafii | `POST /api/employees` |
-| 4 | Dodanie intencji mszalnej | `POST /api/intentions` |
-| 5 | Rejestracja sakramentu / ogłoszenie | `POST /api/sacrament-administrations` lub `POST /api/announcements` |
-
-Zespół powinien **ustalić oficjalną listę 5 UC** z diagramów w `docs/docs.md` §2.3 i dopasować tabelę.
+Brakuje requestów Bruno dla wielu nowych endpointów (offerings, participants, organizers, duties, aggregate GET-y itd.) — do dopisania przez testera.
 
 ---
 
-## 7. Co zostało do zrobienia (backlog)
+## 7. Backlog (co zostało do zrobienia)
 
 ### Wymagane na ocenę / prezentację
 
 - [ ] **§3 Projekt** w `docs/docs.md` (diagramy DDD, ERD implementacyjny)
-- [ ] **§4 Implementacja** (architektura, kontrolery, baza)
-- [ ] **§5 Testy** (Bruno + JUnit, raport wyników)
+- [ ] **§4 Implementacja** (opis architektury, kontrolery, baza, serwisy, fabryki)
+- [ ] **§5 Testy** (raport Bruno + JUnit, zrzuty ekranu)
 - [ ] **§6.1 Role** (kto co robił)
-- [ ] **`schema.sql`** (DDL) — osobny plik, np. `docs/sql/schema.sql`
-- [ ] **Raport testów** (PDF/Markdown) + zrzuty Bruno
-- [ ] Rozszerzyć **Bruno** o kluczowe brakujące endpointy
-- [ ] **Suchy przebieg prezentacji** (świeża baza, kolejność requestów)
+- [ ] **`schema.sql`** — DDL eksportowany z H2 po uruchomieniu (`SCRIPT TO 'schema.sql'`)
+- [ ] Rozszerzyć **Bruno** o brakujące endpointy (patrz §6)
+- [ ] **Suchy przebieg prezentacji** (świeża baza, kolejność requestów, Swagger UI)
 
 ### Opcjonalne / jakość
 
-- [ ] PUT/DELETE wybranych zasobów
-- [ ] Warstwa serwisów + `@Valid`
-- [ ] OpenAPI / Swagger UI
-- [ ] Front (HTML lub Thymeleaf) — **tylko jeśli prowadzący wymaga**
-- [ ] Usunąć / nie commitować `docs/jdk-26_windows-x64_bin.exe` (duży instalator)
-- [ ] Lepsze generowanie ID (sekwencje zamiast `findAll().max()`)
+- [ ] Walidacja `@Valid` + `@NotBlank` / `@NotNull` na request DTO
+- [ ] Lepsze generowanie ID (sekwencje JPA zamiast `EntityIds.nextId()`)
+- [ ] Front (HTML / Thymeleaf) — tylko jeśli prowadzący wymaga
+- [ ] Usunąć `docs/jdk-26_windows-x64_bin.exe` z repo (duży plik binarny)
 
 ### Znane ograniczenia techniczne
 
-- ID generowane w kontrolerach przez `EntityIds.nextId()` — przy dużej bazie niewydajne.
-- Baza plikowa H2 — przy `ddl-auto=update` + `data.sql` z `continue-on-error=true` stary plik `data/` może mieć niepełny seed → patrz §2.
-- Brak `POST /api/parishes` — parafia tylko z seeda.
-- Parafia w seedzie bez powiązanej miejscowości w `data.sql`.
+- ID generowane przez `EntityIds.nextId(repo, getter)` — `max(id)+1`. Przy równoległych requestach teoretycznie race condition — nieistotne dla demo i testów.
+- Baza plikowa H2 — przy `ddl-auto=update` + `data.sql` z `continue-on-error=true` stary plik `data/` może mieć niepełny seed → wystarczy usunąć `data/` i zrestartować.
+- Brak paginacji na listach GET — nieistotne dla rozmiaru danych w projekcie.
 
 ---
 
-## 8. Struktura repozytorium
+## 8. Struktura kodu
 
 ```
-eParafia/
-├── src/main/java/edu/prz/eparish/
-│   ├── EparishApplication.java
-│   ├── api/                    # kontrolery REST
-│   ├── duszpasterstwowiernych/
-│   ├── grupyparafialne/
-│   ├── informacjeoparafii/
-│   ├── koordynacjawydarzen/
-│   ├── organizacjarolizadan/
-│   └── poslugasakramentalna/
-├── src/main/resources/
-│   ├── application.properties
-│   └── data.sql
-├── src/test/
-│   ├── java/.../ApiIntegrationTest.java
-│   └── resources/application-test.properties
-├── tests/                      # kolekcja Bruno
-├── docs/
-│   ├── docs.md                 # dokumentacja projektu (główna)
-│   └── wytyczne_do_testów.md
-├── README.md
-└── handoff.md                  # ten plik
+src/main/java/edu/prz/eparish/
+├── EparishApplication.java
+├── api/                                  # Kontrolery REST (cienkie delegaty)
+│   ├── HomeController.java
+│   ├── EventCoordinationController.java
+│   ├── ParishInformationController.java
+│   ├── PastoralCareController.java
+│   ├── ParishOperationsController.java
+│   ├── SacramentalMinistryController.java
+│   └── support/
+│       ├── EntityIds.java
+│       └── OpenApiConfig.java
+├── koordynacjawydarzen/
+│   ├── application/
+│   │   ├── EventFactory.java
+│   │   └── EventCoordinationService.java
+│   └── domain/
+│       └── wydarzenie/WydarzenieAgregat.java
+├── informacjeoparafii/
+│   ├── application/
+│   │   ├── ParishInfoFactory.java
+│   │   └── ParishInformationService.java
+│   └── domain/...
+├── duszpasterstwowiernych/
+│   ├── application/
+│   │   ├── PastoralCareFactory.java
+│   │   └── PastoralCareService.java
+│   └── domain/
+│       └── parafianin/ParafianinAgregat.java
+├── grupyparafialne/
+│   ├── application/
+│   │   ├── ParishGroupFactory.java
+│   │   └── ParishGroupService.java
+│   └── domain/
+│       └── grupa/GrupaParafialnaAgregat.java
+├── organizacjarolizadan/
+│   ├── application/
+│   │   ├── StaffFactory.java
+│   │   └── ParishOperationsService.java
+│   └── domain/...
+└── poslugasakramentalna/
+    ├── application/
+    │   ├── SacramentalMinistryFactory.java
+    │   └── SacramentalMinistryService.java
+    └── domain/...
 ```
 
 ---
 
-## 9. Konfiguracja (`application.properties`)
+## 9. Konfiguracja
 
-| Właściwość | Znaczenie |
-|------------|-----------|
+### `application.properties`
+
+| Właściwość | Wartość |
+|------------|---------|
 | `spring.datasource.url` | `jdbc:h2:file:./data/eparish` |
 | `spring.jpa.hibernate.ddl-auto` | `update` |
-| `spring.sql.init.mode` | `always` — ładuje `data.sql` przy starcie |
-| `spring.sql.init.continue-on-error` | `true` — przy istniejącej bazie duplikaty INSERTów są ignorowane |
+| `spring.sql.init.mode` | `always` |
+| `spring.sql.init.continue-on-error` | `true` |
 | `spring.h2.console.enabled` | `true` |
+| `springdoc.swagger-ui.path` | `/swagger-ui/index.html` |
 
-Profil testowy: `src/test/resources/application-test.properties` (H2 in-memory, `create-drop`).
+### Profil testowy (`application-test.properties`)
 
----
-
-## 10. Kontakt / decyzje do podjęcia przez zespół
-
-1. **Czy prowadzący wymaga frontu?** — domyślnie nie (patrz rozmowę w zespole / `docs.md`).
-2. **Które dokładnie 5 UC wchodzi do raportu?** — doprecyzować z diagramów UML.
-3. **Kto uzupełnia §3–§5 w `docs.md`?** — analityk/projektant/tester.
-4. **Kto dopisuje Bruno i raport testów?** — tester.
-5. **Kto robi `schema.sql`?** — programista (można wyeksportować z H2 po pierwszym uruchomieniu).
+H2 in-memory, `ddl-auto=create-drop` — izolacja między testami.
 
 ---
 
-## 11. Przydatne komendy
+## 10. Polecenia
 
 ```powershell
-.\gradlew.bat build          # build + testy
-.\gradlew.bat test           # tylko testy
 .\gradlew.bat bootRun        # uruchomienie
-.\gradlew.bat compileJava    # sama kompilacja
+.\gradlew.bat test           # testy JUnit
+.\gradlew.bat build          # kompilacja + testy
+.\gradlew.bat compileJava    # tylko kompilacja
 ```
 
 ---
 
-## 12. Historia zmian (skrót)
+## 11. Historia zmian (skrót)
 
-- Dodane pełne API REST (GET + POST), `HomeController`, trzeci/trzeci+ kontrolery domenowe.
-- Naprawiony Whitelabel na `/`.
-- `README.md` — instrukcja zespołu.
-- `ApiIntegrationTest` + profil testowy.
-- Poprawka kolumny `data_i_godzina` na encji wydarzenia.
-- Bruno: `List Events`, test sakramentu, list parafii.
+| Data | Zmiana |
+|------|--------|
+| maj 2026 | Pełny refaktoring do DDD: 6 serwisów, 6 fabryk, 3 agregaty z metodami domenowymi; 20 UC; PUT/DELETE; Swagger UI |
+| maj 2026 | `ApiIntegrationTest` (9 scenariuszy), profil testowy |
+| maj 2026 | `HomeController`, `data.sql` pełny seed, `EntityIds` helper |
+| maj 2026 | Wszystkie encje JPA (24), repozytoria, kontrolery bazowe |
 
 ---
 
-*Po przejęciu projektu: przeczytaj `README.md`, uruchom `bootRun`, odpal `gradlew test` i kolekcję Bruno. Pytania techniczne — patrz kod w `edu.prz.eparish.api`.*
+*Po przejęciu: przeczytaj `README.md`, usuń `data/`, uruchom `bootRun`, odpal `gradlew test`, otwórz Swagger UI na `http://localhost:8080/swagger-ui/index.html`.*

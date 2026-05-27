@@ -1,10 +1,10 @@
 # eParafia
 
-System obsługi parafii — projekt zespołowy (PRz, Inżynieria i analiza danych).  
-Backend: **Java 26**, **Spring Boot 4**, **JPA**, baza **H2**, API **REST**.
+System obsługi parafii — projekt zespołowy (PRz, Inżynieria i analiza danych L2).  
+Backend: **Java 26**, **Spring Boot 4.0.6**, **JPA / Hibernate**, baza **H2**, API **REST**.
 
 Pełna dokumentacja analityczna: [`docs/docs.md`](docs/docs.md)  
-**Przekazanie projektu (handoff):** [`handoff.md`](handoff.md)  
+Przekazanie projektu: [`handoff.md`](handoff.md)  
 Repozytorium GitHub: https://github.com/Slasq/eParafia
 
 ---
@@ -14,121 +14,181 @@ Repozytorium GitHub: https://github.com/Slasq/eParafia
 | Narzędzie | Wersja |
 |-----------|--------|
 | JDK | **26** (toolchain w `build.gradle`) |
-| Gradle | wrapper w projekcie (`gradlew` / `gradlew.bat`) |
+| Gradle | wrapper w projekcie (`gradlew.bat`) |
 | IDE (opcjonalnie) | IntelliJ IDEA, VS Code + Extension Pack for Java |
-
-JDK 26 można zainstalować z [adoptium.net](https://adoptium.net/) lub z instalatora w `docs/` (jeśli jest w repozytorium).
 
 ---
 
 ## Uruchomienie
 
-### 1. IntelliJ IDEA
-
-1. **File → Open** → katalog projektu (folder z `build.gradle`).
-2. Poczekaj na import Gradle i pobranie zależności.
-3. **File → Project Structure → Project** → SDK: **Java 26**.
-4. **Settings → Build Tools → Gradle** → **Gradle JVM**: Java 26.
-5. Włącz przetwarzanie adnotacji Lombok:  
-   **Settings → Compiler → Annotation Processors → Enable annotation processing**.
-6. Otwórz `src/main/java/edu/prz/eparish/EparishApplication.java` i uruchom **Run** przy metodzie `main`.
-
-W konfiguracji uruchomienia ustaw **Working directory** na katalog projektu (`$PROJECT_DIR$`), żeby baza plikowa H2 trafiała do `./data/`.
-
-### 2. Terminal (Windows)
+### Terminal (Windows)
 
 ```powershell
 cd ścieżka\do\eParafia
 .\gradlew.bat bootRun
 ```
 
-### 3. JAR
+### IntelliJ IDEA
+
+1. **File → Open** → katalog projektu.
+2. **File → Project Structure → Project** → SDK: Java 26.
+3. **Settings → Build Tools → Gradle → Gradle JVM**: Java 26.
+4. **Settings → Compiler → Annotation Processors → Enable annotation processing** (Lombok).
+5. Uruchom `EparishApplication.java` → **Working directory**: `$PROJECT_DIR$`.
+
+### JAR
 
 ```powershell
 .\gradlew.bat bootJar
 java -jar build\libs\eparish-0.0.1-SNAPSHOT.jar
 ```
 
-Aplikacja startuje domyślnie na **http://localhost:8080**.
+Aplikacja startuje na **http://localhost:8080**.
 
 ---
 
 ## Baza danych (H2)
 
-- Plik bazy: `./data/eparish` (katalog `data/` jest w `.gitignore`).
-- Przy starcie Hibernate tworzy/aktualizuje schemat (`ddl-auto=update`), a `data.sql` ładuje dane startowe.
-- Konsola H2: **http://localhost:8080/h2-console**
-
-| Pole | Wartość |
-|------|---------|
+| | |
+|---|---|
+| Plik bazy | `./data/eparish` (`data/` jest w `.gitignore`) |
+| Konsola H2 | http://localhost:8080/h2-console |
 | JDBC URL | `jdbc:h2:file:./data/eparish` |
-| User | `sa` |
-| Password | *(puste)* |
+| User / hasło | `sa` / *(puste)* |
+
+Przy starcie Hibernate tworzy schemat (`ddl-auto=update`), a `data.sql` ładuje dane startowe (diecezja, parafia, stanowiska, typy wydarzeń, harmonogram, wydarzenie id=1, grupy, sakramenty, ksiądz, rodzina, parafianin).
+
+**Jeśli testy Bruno dają 404** — usuń folder `data/` i uruchom aplikację od nowa (świeża baza + pełny seed).
+
+---
+
+## Swagger UI
+
+Interaktywna dokumentacja API (wszystkie endpointy, modele, możliwość testowania):
+
+**http://localhost:8080/swagger-ui/index.html**
+
+Działa na Java 26 — sprawdzone.
+
+---
+
+## Architektura
+
+Projekt stosuje **Domain-Driven Design (DDD)** z czystym podziałem warstw:
+
+```
+HTTP Request
+    ↓
+Controller        ← tylko mapowanie request/response, zero logiki
+    ↓
+Service           ← przypadki użycia (use cases), walidacja, orkiestracja
+    ↓
+Factory           ← tworzenie obiektów domenowych (new + EntityIds)
+    ↓
+Repository (JPA)  ← persystencja
+```
+
+### Konteksty domenowe
+
+| Pakiet | Serwis | Fabryka | Agregat |
+|---|---|---|---|
+| `koordynacjawydarzen` | `EventCoordinationService` | `EventFactory` | `WydarzenieAgregat` *(złożony)* |
+| `informacjeoparafii` | `ParishInformationService` | `ParishInfoFactory` | `ParafianinAgregat` |
+| `duszpasterstwowiernych` | `PastoralCareService` | `PastoralCareFactory` | — |
+| `grupyparafialne` | `ParishGroupService` | `ParishGroupFactory` | `GrupaParafialnaAgregat` |
+| `organizacjarolizadan` | `ParishOperationsService` | `StaffFactory` | — |
+| `poslugasakramentalna` | `SacramentalMinistryService` | `SacramentalMinistryFactory` | — |
+
+### Agregaty domenowe
+
+| Agregat | Korzeń | Encje składowe | Endpoint |
+|---|---|---|---|
+| **WydarzenieAgregat** *(złożony)* | WydarzenieParafialne | Intencja, Ogloszenie, Ofiara, Uczestnik, Organizator | `GET /api/events/{id}/aggregate` |
+| **ParafianinAgregat** | Parafianin | Kartoteka, Dokument | `GET /api/parishioners/{id}/aggregate` |
+| **GrupaParafialnaAgregat** | GrupaParafialna | Czlonkostwo | `GET /api/groups/{id}/aggregate` |
 
 ---
 
 ## API REST
 
-- Strona startowa (JSON): **GET /** — lista przykładowych ścieżek
-- Wszystkie zasoby: prefiks **`/api`**
-- Tworzenie zasobów: **201 Created**, odczyt: **200 OK**
+Strona startowa z listą wszystkich use-cases: **GET /**  
+Prefix wszystkich zasobów: **`/api`**
 
-### Odczyt (GET) — działa w przeglądarce
+### Przypadki użycia → endpointy
 
-| Ścieżka | Opis |
-|---------|------|
-| `/api/parishes` | Parafie |
-| `/api/parishioners` | Parafianie |
-| `/api/families` | Rodziny |
-| `/api/groups` | Grupy parafialne |
-| `/api/events` | Wydarzenia |
-| `/api/intentions` | Intencje |
-| `/api/announcements` | Ogłoszenia |
-| `/api/employees` | Pracownicy |
-| `/api/priests` | Księża |
-| `/api/sacraments` | Sakramenty |
-| `/api/positions` | Stanowiska |
-| `/api/event-types` | Typy wydarzeń |
-| `/api/schedules` | Harmonogramy |
+| Use Case | Metoda | Ścieżka |
+|---|---|---|
+| Zarządzanie wydarzeniami | POST / PUT / DELETE | `/api/events` |
+| Przypisanie intencji | POST | `/api/events/{id}/intentions` |
+| Prowadzenie harmonogramu (realizacja intencji) | PUT | `/api/events/{eId}/intentions/{iId}/realize` |
+| Zarządzanie ogłoszeniami | POST | `/api/events/{id}/announcements` |
+| Ewidencja ofiar | POST | `/api/events/{id}/offerings` |
+| Przypisanie uczestników | POST | `/api/events/{id}/participants` |
+| Przypisanie organizatorów | POST | `/api/events/{id}/organizers` |
+| Zarządzanie parafią | POST / PUT | `/api/parishes` |
+| Dodaj diecezję / biskupa / siedzibę | POST / PUT | `/api/dioceses` |
+| Dodaj miejscowość | POST | `/api/localities` |
+| Zarządzanie parafianami | POST / PUT / DELETE | `/api/parishioners` |
+| Prowadzenie kartotek | POST | `/api/parishioners/{id}/record` |
+| Rejestracja zdarzeń religijnych | PUT | `/api/records/{id}` |
+| Zarządzanie dokumentacją | POST | `/api/parishioners/{id}/record/documents` |
+| Zarządzanie wspólnotą — dodaj rodzinę | POST | `/api/families` |
+| Zmiana nazwiska rodziny | PUT | `/api/families/{id}/name` |
+| Przypisanie do rodziny | PUT | `/api/parishioners/{pid}/family/{fid}` |
+| Dodanie adresu rodziny | POST | `/api/family-addresses` |
+| Zmiana adresu rodziny | PUT | `/api/family-addresses/{id}` |
+| Dodaj grupę | POST | `/api/groups` |
+| Zmień grupę | PUT | `/api/groups/{id}` |
+| Dodaj członkostwo (z datami) | POST | `/api/memberships` |
+| Zakończ członkostwo | PUT | `/api/memberships/{id}/terminate` |
+| Zarządzanie personelem | POST | `/api/employees` |
+| Przydzielanie stanowiska | POST | `/api/positions` |
+| Przydzielanie obowiązku | POST | `/api/duties` |
+| Wykonanie obowiązku | PUT | `/api/duties/{id}/complete` |
+| Rejestrowanie sakramentów | POST | `/api/sacrament-administrations` |
 
-Szczegóły pojedynczego rekordu: np. `/api/parishes/1`, `/api/events/1`.
+### Odczyt (GET)
 
-### Tworzenie (POST) — Bruno / Postman
+```
+/api/parishes            /api/parishioners         /api/families
+/api/groups              /api/memberships           /api/family-addresses
+/api/events              /api/intentions            /api/announcements
+/api/offerings           /api/participants          /api/organizers
+/api/schedules           /api/event-types           /api/priests
+/api/sacraments          /api/sacrament-administrations
+/api/employees           /api/positions             /api/duties
+/api/dioceses            /api/localities            /api/records
+/api/documents
+```
 
-| Ścieżka | Opis |
-|---------|------|
-| `/api/families` | Rodzina |
-| `/api/family-addresses` | Adres rodziny |
-| `/api/groups` | Grupa |
-| `/api/memberships` | Członkostwo w grupie |
-| `/api/parishioners` | Parafianin |
-| `/api/records` | Kartoteka |
-| `/api/documents` | Dokument |
-| `/api/dioceses` | Diecezja |
-| `/api/localities` | Miejscowość |
-| `/api/employees` | Pracownik |
-| `/api/duties` | Obowiązek |
-| `/api/intentions` | Intencja |
-| `/api/announcements` | Ogłoszenie |
-| `/api/events` | Wydarzenie |
-| `/api/schedules` | Harmonogram |
-| `/api/offerings` | Ofiara |
-| `/api/participants` | Uczestnik wydarzenia |
-| `/api/organizers` | Organizator |
-| `/api/priests` | Ksiądz |
-| `/api/sacraments` | Sakrament |
-| `/api/sacrament-administrations` | Udzielenie sakramentu |
+Szczegół po ID: np. `/api/events/1`, `/api/parishioners/1`.
 
 ### Przykłady JSON
 
-**Rodzina** — `POST /api/families`
-
+**Wydarzenie** — `POST /api/events`
 ```json
-{ "familyName": "Kowalscy", "memberCount": 4 }
+{
+  "name": "Msza niedzielna",
+  "dateTime": "2026-06-01T10:00:00",
+  "place": "Kościół główny",
+  "description": "Msza z okazji Zielonych Świątek",
+  "parishId": 1,
+  "eventTypeId": 1,
+  "scheduleId": 1
+}
+```
+
+**Intencja** — `POST /api/intentions`
+```json
+{
+  "content": "Za zdrowie rodziny Kowalskich",
+  "date": "2026-05-30",
+  "donor": "Jan Kowalski",
+  "eventId": 1
+}
 ```
 
 **Parafianin** — `POST /api/parishioners`
-
 ```json
 {
   "firstName": "Anna",
@@ -142,8 +202,7 @@ Szczegóły pojedynczego rekordu: np. `/api/parishes/1`, `/api/events/1`.
 }
 ```
 
-**Udzielenie sakramentu** — `POST /api/sacrament-administrations` (dane startowe: parafianin 1, ksiądz 1, sakrament 1)
-
+**Rejestracja sakramentu** — `POST /api/sacrament-administrations`
 ```json
 {
   "administrationDate": "2026-05-25",
@@ -153,40 +212,30 @@ Szczegóły pojedynczego rekordu: np. `/api/parishes/1`, `/api/events/1`.
 }
 ```
 
-**Intencja** — `POST /api/intentions` (`eventId`: 1 z `data.sql`)
-
-```json
-{
-  "content": "Za zdrowie rodziny Kowalskich",
-  "date": "2026-05-30",
-  "donor": "Jan Kowalski",
-  "eventId": 1
-}
-```
-
-Kontrolery w pakiecie `edu.prz.eparish.api`: `HomeController`, `PastoralCareController`, `ParishOperationsController`, `ParishInformationController`, `EventCoordinationController`, `SacramentalMinistryController`.
+**Wykonanie obowiązku** — `PUT /api/duties/1/complete`  
+*(brak body — status zmienia się na `COMPLETED`)*
 
 ---
 
-## Testy API (Bruno)
+## Testy
 
-Kolekcja w katalogu [`tests/`](tests/). Narzędzie: [Bruno](https://www.usebruno.com/).
-
-1. Uruchom aplikację (`bootRun` lub IntelliJ).
-2. W Bruno: **Open Collection** → wybierz folder `tests/`.
-3. Uruchom żądania w podfolderach (np. `Pastoral Care/Add Family`).
-
-Każdy test zakłada działający serwer na `http://localhost:8080`.
-
-**Ważne:** testy `Add Intention` i `Add Announcement` wymagają wydarzenia `id=1` z `data.sql`. Jeśli dostajesz **404**, zatrzymaj aplikację, usuń folder `data/` w katalogu projektu i uruchom ponownie (świeża baza). Najpierw uruchom `Event_Coordination/List Events` — sprawdzi, czy seed jest poprawny.
-
-Testy automatyczne (Gradle, te same scenariusze co Bruno):
+### Automatyczne (JUnit + MockMvc)
 
 ```powershell
 .\gradlew.bat test
 ```
 
-Wytyczne testera: [`docs/wytyczne_do_testów.md`](docs/wytyczne_do_testów.md).
+Plik: `src/test/java/edu/prz/eparish/api/ApiIntegrationTest.java` — 9 scenariuszy pokrywających główne przepływy.
+
+### Bruno (HTTP)
+
+Kolekcja w katalogu [`tests/`](tests/). Narzędzie: [usebruno.com](https://www.usebruno.com/).
+
+1. Uruchom aplikację.
+2. W Bruno: **Open Collection** → folder `tests/`.
+3. Pierwsze żądanie zawsze: `Event_Coordination/List Events` — sprawdza seed.
+
+Wytyczne testera: [`docs/wytyczne_do_testów.md`](docs/wytyczne_do_testów.md)
 
 ---
 
@@ -194,39 +243,67 @@ Wytyczne testera: [`docs/wytyczne_do_testów.md`](docs/wytyczne_do_testów.md).
 
 ```
 src/main/java/edu/prz/eparish/
-├── EparishApplication.java          # punkt wejścia Spring Boot
-├── api/                             # kontrolery REST
-├── duszpasterstwowiernych/          # rodziny, parafianie, adresy
-├── grupyparafialne/                 # grupy, członkostwa
-├── informacjeoparafii/              # parafia, diecezja, kartoteki, dokumenty
-├── koordynacjawydarzen/             # wydarzenia, intencje, ogłoszenia, …
-├── organizacjarolizadan/            # pracownicy, stanowiska, obowiązki
-└── poslugasakramentalna/            # księża, sakramenty
+├── EparishApplication.java
+├── api/                                  # Kontrolery REST (cienkie delegaty)
+│   ├── HomeController.java
+│   ├── EventCoordinationController.java
+│   ├── ParishInformationController.java
+│   ├── PastoralCareController.java
+│   ├── ParishOperationsController.java
+│   ├── SacramentalMinistryController.java
+│   └── support/
+│       ├── EntityIds.java
+│       └── OpenApiConfig.java
+├── koordynacjawydarzen/
+│   ├── application/
+│   │   ├── EventFactory.java
+│   │   └── EventCoordinationService.java
+│   └── domain/
+│       └── wydarzenie/WydarzenieAgregat.java  ← złożony agregat
+├── informacjeoparafii/
+│   ├── application/
+│   │   ├── ParishInfoFactory.java
+│   │   └── ParishInformationService.java
+│   └── domain/...
+├── duszpasterstwowiernych/
+│   ├── application/
+│   │   ├── PastoralCareFactory.java
+│   │   └── PastoralCareService.java
+│   └── domain/
+│       └── parafianin/ParafianinAgregat.java
+├── grupyparafialne/
+│   ├── application/
+│   │   ├── ParishGroupFactory.java
+│   │   └── ParishGroupService.java
+│   └── domain/
+│       └── grupa/GrupaParafialnaAgregat.java
+├── organizacjarolizadan/
+│   ├── application/
+│   │   ├── StaffFactory.java
+│   │   └── ParishOperationsService.java
+│   └── domain/...
+└── poslugasakramentalna/
+    ├── application/
+    │   ├── SacramentalMinistryFactory.java
+    │   └── SacramentalMinistryService.java
+    └── domain/...
 ```
 
-Model dziedzinowy: ok. **24 encje JPA** w podziałach DDD (wymaganie projektu: 20 encji — spełnione).
+**24 encje JPA** (wymaganie projektu: 20 — spełnione).
 
 ---
 
 ## Polecenia Gradle
 
 ```powershell
+.\gradlew.bat bootRun        # uruchomienie
+.\gradlew.bat test           # testy JUnit
 .\gradlew.bat build          # kompilacja + testy
-.\gradlew.bat test           # tylko testy JUnit
-.\gradlew.bat bootRun        # uruchomienie aplikacji
+.\gradlew.bat compileJava    # tylko kompilacja
 ```
-
----
-
-## Zespół — co dalej
-
-- Rozbudowa testów Bruno pod nowe endpointy.
-- Osobne **skrypty DDL** (wymaganie projektu obok JPA).
-- Uzupełnienie sekcji **Projekt**, **Implementacja**, **Testy** w `docs/docs.md` oraz raport z testów.
-- Ewentualnie PUT/DELETE i walidacja żądań.
 
 ---
 
 ## Prezentacja
 
-Termin (wg dokumentacji): **16–17.06.2026**.
+Termin: **16–17.06.2026**
