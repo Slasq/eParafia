@@ -6,6 +6,7 @@ import edu.prz.eparish.duszpasterstwowiernych.domain.parafianin.Parafianin;
 import edu.prz.eparish.duszpasterstwowiernych.domain.parafianin.ParafianinRepozytorium;
 import edu.prz.eparish.duszpasterstwowiernych.domain.rodzina.Rodzina;
 import edu.prz.eparish.duszpasterstwowiernych.domain.rodzina.RodzinaRepozytorium;
+import edu.prz.eparish.api.support.ListFilterSupport;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -31,6 +32,12 @@ public class PastoralCareService {
       String street, String houseNumber, String apartmentNumber,
       String postalCode, String city, Long familyId) {}
 
+  public record PatchFamilyCommand(String familyName, Integer memberCount) {}
+
+  public record PatchAddressCommand(
+      String street, String houseNumber, String apartmentNumber,
+      String postalCode, String city) {}
+
   // ── UC: Zarządzanie wspólnotą parafialną — dodaj rodzinę ────────────────────
 
   public Rodzina addFamily(AddFamilyCommand cmd) {
@@ -54,8 +61,27 @@ public class PastoralCareService {
     return familyRepo.save(family);
   }
 
-  public List<Rodzina> listFamilies() {
-    return familyRepo.findAll();
+  public Rodzina patchFamily(Long id, PatchFamilyCommand cmd) {
+    Rodzina family = requireFamily(id);
+    if (cmd.familyName() != null) {
+      family.setNazwiskoRodziny(cmd.familyName());
+    }
+    if (cmd.memberCount() != null) {
+      family.setLiczbaCzlonkow(cmd.memberCount());
+    }
+    return familyRepo.save(family);
+  }
+
+  public void deleteFamily(Long id) {
+    if (!familyRepo.existsById(id)) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Family not found");
+    }
+    familyRepo.deleteById(id);
+  }
+
+  public List<Rodzina> listFamilies(String familyName) {
+    return ListFilterSupport.filter(familyRepo.findAll(),
+        ListFilterSupport.containsIgnoreCase(familyName, Rodzina::getNazwiskoRodziny));
   }
 
   public Rodzina getFamily(Long id) {
@@ -94,8 +120,39 @@ public class PastoralCareService {
     return addressRepo.save(address);
   }
 
-  public List<AdresRodziny> listFamilyAddresses() {
-    return addressRepo.findAll();
+  public AdresRodziny patchFamilyAddress(Long id, PatchAddressCommand cmd) {
+    AdresRodziny address = addressRepo.findById(id)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Address not found"));
+    if (cmd.street() != null) {
+      address.setUlica(cmd.street());
+    }
+    if (cmd.houseNumber() != null) {
+      address.setNumerDomu(cmd.houseNumber());
+    }
+    if (cmd.apartmentNumber() != null) {
+      address.setNumerMieszkania(cmd.apartmentNumber());
+    }
+    if (cmd.postalCode() != null) {
+      address.setKodPocztowy(cmd.postalCode());
+    }
+    if (cmd.city() != null) {
+      address.setMiasto(cmd.city());
+    }
+    return addressRepo.save(address);
+  }
+
+  public void deleteFamilyAddress(Long id) {
+    if (!addressRepo.existsById(id)) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Address not found");
+    }
+    addressRepo.deleteById(id);
+  }
+
+  public List<AdresRodziny> listFamilyAddresses(Long familyId, String city, String postalCode) {
+    return ListFilterSupport.filter(addressRepo.findAll(),
+        ListFilterSupport.eqLong(familyId, a -> a.getRodzina() != null ? a.getRodzina().getId() : null),
+        ListFilterSupport.containsIgnoreCase(city, AdresRodziny::getMiasto),
+        ListFilterSupport.eq(postalCode, AdresRodziny::getKodPocztowy));
   }
 
   // ── Internal helpers ─────────────────────────────────────────────────────────

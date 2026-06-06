@@ -27,11 +27,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -45,9 +47,14 @@ public class EventCoordinationController {
   // ── EVENTS ──────────────────────────────────────────────────────────────────
 
   @GetMapping("/events")
-  @Operation(summary = "List all events")
-  public List<EventResponse> listEvents() {
-    return service.listEvents().stream().map(this::toEventResponse).toList();
+  @Operation(summary = "List events (optional filters: parishId, eventTypeId, scheduleId, name)")
+  public List<EventResponse> listEvents(
+      @RequestParam(required = false) Long parishId,
+      @RequestParam(required = false) Long eventTypeId,
+      @RequestParam(required = false) Long scheduleId,
+      @RequestParam(required = false) String name) {
+    return service.listEvents(parishId, eventTypeId, scheduleId, name).stream()
+        .map(this::toEventResponse).toList();
   }
 
   @GetMapping("/events/{id}")
@@ -73,6 +80,14 @@ public class EventCoordinationController {
         req.parishId(), req.eventTypeId(), req.scheduleId())));
   }
 
+  @PatchMapping("/events/{id}")
+  @Operation(summary = "Partially update parish event")
+  public EventResponse patchEvent(@PathVariable Long id, @RequestBody PatchEventRequest req) {
+    return toEventResponse(service.patchEvent(id, new EventCoordinationService.PatchEventCommand(
+        req.name(), req.dateTime(), req.place(), req.description(),
+        req.parishId(), req.eventTypeId(), req.scheduleId())));
+  }
+
   @DeleteMapping("/events/{id}")
   @Operation(summary = "Delete parish event")
   public ResponseEntity<Void> deleteEvent(@PathVariable Long id) {
@@ -94,9 +109,14 @@ public class EventCoordinationController {
   // ── INTENTIONS — UC: Przypisanie intencji ───────────────────────────────────
 
   @GetMapping("/intentions")
-  @Operation(summary = "List all intentions")
-  public List<IntentionResponse> listIntentions() {
-    return service.listIntentions().stream().map(this::toIntentionResponse).toList();
+  @Operation(summary = "List intentions (optional filters: eventId, status, date, donor)")
+  public List<IntentionResponse> listIntentions(
+      @RequestParam(required = false) Long eventId,
+      @RequestParam(required = false) String status,
+      @RequestParam(required = false) LocalDate date,
+      @RequestParam(required = false) String donor) {
+    return service.listIntentions(eventId, status, date, donor).stream()
+        .map(this::toIntentionResponse).toList();
   }
 
   @GetMapping("/intentions/{id}")
@@ -114,6 +134,21 @@ public class EventCoordinationController {
     return ResponseEntity.status(HttpStatus.CREATED).body(toIntentionResponse(intention));
   }
 
+  @PatchMapping("/intentions/{id}")
+  @Operation(summary = "Partially update intention")
+  public IntentionResponse patchIntention(@PathVariable Long id, @RequestBody PatchIntentionRequest req) {
+    return toIntentionResponse(service.patchIntention(id,
+        new EventCoordinationService.PatchIntentionCommand(
+            req.content(), req.date(), req.donor(), req.status())));
+  }
+
+  @DeleteMapping("/intentions/{id}")
+  @Operation(summary = "Delete intention")
+  public ResponseEntity<Void> deleteIntention(@PathVariable Long id) {
+    service.deleteIntention(id);
+    return ResponseEntity.noContent().build();
+  }
+
   @PutMapping("/events/{eventId}/intentions/{intentionId}/realize")
   @Operation(summary = "UC: Prowadzenie harmonogramu — mark intention as realized")
   public IntentionResponse realizeIntention(
@@ -124,9 +159,9 @@ public class EventCoordinationController {
   // ── ANNOUNCEMENTS — UC: Zarządzanie ogłoszeniami parafialnymi ───────────────
 
   @GetMapping("/announcements")
-  @Operation(summary = "List all announcements")
-  public List<AnnouncementResponse> listAnnouncements() {
-    return service.listAnnouncements().stream().map(this::toAnnouncementResponse).toList();
+  @Operation(summary = "List announcements (optional filter: eventId)")
+  public List<AnnouncementResponse> listAnnouncements(@RequestParam(required = false) Long eventId) {
+    return service.listAnnouncements(eventId).stream().map(this::toAnnouncementResponse).toList();
   }
 
   @GetMapping("/announcements/{id}")
@@ -143,12 +178,36 @@ public class EventCoordinationController {
     return ResponseEntity.status(HttpStatus.CREATED).body(toAnnouncementResponse(announcement));
   }
 
+  @PatchMapping("/announcements/{id}")
+  @Operation(summary = "Partially update announcement")
+  public AnnouncementResponse patchAnnouncement(
+      @PathVariable Long id, @RequestBody PatchAnnouncementRequest req) {
+    return toAnnouncementResponse(service.patchAnnouncement(id,
+        new EventCoordinationService.PatchAnnouncementCommand(req.content())));
+  }
+
+  @DeleteMapping("/announcements/{id}")
+  @Operation(summary = "Delete announcement")
+  public ResponseEntity<Void> deleteAnnouncement(@PathVariable Long id) {
+    service.deleteAnnouncement(id);
+    return ResponseEntity.noContent().build();
+  }
+
   // ── OFFERINGS — UC: Prowadzenie ewidencji ofiar ─────────────────────────────
 
   @GetMapping("/offerings")
-  @Operation(summary = "List all offerings")
-  public List<OfferingResponse> listOfferings() {
-    return service.listOfferings().stream().map(this::toOfferingResponse).toList();
+  @Operation(summary = "List offerings (optional filters: eventId, type, date)")
+  public List<OfferingResponse> listOfferings(
+      @RequestParam(required = false) Long eventId,
+      @RequestParam(required = false) String type,
+      @RequestParam(required = false) LocalDate date) {
+    return service.listOfferings(eventId, type, date).stream().map(this::toOfferingResponse).toList();
+  }
+
+  @GetMapping("/offerings/{id}")
+  @Operation(summary = "Get offering by ID")
+  public OfferingResponse getOffering(@PathVariable Long id) {
+    return toOfferingResponse(service.getOffering(id));
   }
 
   @PostMapping("/events/{id}/offerings")
@@ -160,12 +219,28 @@ public class EventCoordinationController {
     return ResponseEntity.status(HttpStatus.CREATED).body(toOfferingResponse(offering));
   }
 
+  @PatchMapping("/offerings/{id}")
+  @Operation(summary = "Partially update offering")
+  public OfferingResponse patchOffering(@PathVariable Long id, @RequestBody PatchOfferingRequest req) {
+    return toOfferingResponse(service.patchOffering(id,
+        new EventCoordinationService.PatchOfferingCommand(req.amount(), req.date(), req.type())));
+  }
+
+  @DeleteMapping("/offerings/{id}")
+  @Operation(summary = "Delete offering")
+  public ResponseEntity<Void> deleteOffering(@PathVariable Long id) {
+    service.deleteOffering(id);
+    return ResponseEntity.noContent().build();
+  }
+
   // ── PARTICIPANTS — UC: Przypisanie uczestników i organizatorów ───────────────
 
   @GetMapping("/participants")
-  @Operation(summary = "List all participants")
-  public List<ParticipantResponse> listParticipants() {
-    return service.listParticipants().stream().map(this::toParticipantResponse).toList();
+  @Operation(summary = "List participants (optional filters: eventId, role)")
+  public List<ParticipantResponse> listParticipants(
+      @RequestParam(required = false) Long eventId,
+      @RequestParam(required = false) String role) {
+    return service.listParticipants(eventId, role).stream().map(this::toParticipantResponse).toList();
   }
 
   @PostMapping("/events/{id}/participants")
@@ -175,6 +250,13 @@ public class EventCoordinationController {
     Uczestnik participant = service.assignParticipant(id,
         new AssignPersonCommand(req.firstName(), req.lastName(), req.role()));
     return ResponseEntity.status(HttpStatus.CREATED).body(toParticipantResponse(participant));
+  }
+
+  @PatchMapping("/participants/{id}")
+  @Operation(summary = "Partially update participant")
+  public ParticipantResponse patchParticipant(@PathVariable Long id, @RequestBody PatchPersonRequest req) {
+    return toParticipantResponse(service.patchParticipant(id,
+        new EventCoordinationService.PatchPersonCommand(req.firstName(), req.lastName(), req.role())));
   }
 
   @DeleteMapping("/participants/{id}")
@@ -187,9 +269,11 @@ public class EventCoordinationController {
   // ── ORGANIZERS ───────────────────────────────────────────────────────────────
 
   @GetMapping("/organizers")
-  @Operation(summary = "List all organizers")
-  public List<OrganizerResponse> listOrganizers() {
-    return service.listOrganizers().stream().map(this::toOrganizerResponse).toList();
+  @Operation(summary = "List organizers (optional filters: eventId, role)")
+  public List<OrganizerResponse> listOrganizers(
+      @RequestParam(required = false) Long eventId,
+      @RequestParam(required = false) String role) {
+    return service.listOrganizers(eventId, role).stream().map(this::toOrganizerResponse).toList();
   }
 
   @PostMapping("/events/{id}/organizers")
@@ -199,6 +283,13 @@ public class EventCoordinationController {
     Organizator organizer = service.assignOrganizer(id,
         new AssignPersonCommand(req.firstName(), req.lastName(), req.role()));
     return ResponseEntity.status(HttpStatus.CREATED).body(toOrganizerResponse(organizer));
+  }
+
+  @PatchMapping("/organizers/{id}")
+  @Operation(summary = "Partially update organizer")
+  public OrganizerResponse patchOrganizer(@PathVariable Long id, @RequestBody PatchPersonRequest req) {
+    return toOrganizerResponse(service.patchOrganizer(id,
+        new EventCoordinationService.PatchPersonCommand(req.firstName(), req.lastName(), req.role())));
   }
 
   @DeleteMapping("/organizers/{id}")
@@ -228,9 +319,9 @@ public class EventCoordinationController {
   // ── EVENT TYPES ──────────────────────────────────────────────────────────────
 
   @GetMapping("/event-types")
-  @Operation(summary = "List event types")
-  public List<EventTypeResponse> listEventTypes() {
-    return service.listEventTypes().stream()
+  @Operation(summary = "List event types (optional filter: name)")
+  public List<EventTypeResponse> listEventTypes(@RequestParam(required = false) String name) {
+    return service.listEventTypes(name).stream()
         .map(t -> new EventTypeResponse(t.getId(), t.getNazwa()))
         .toList();
   }
@@ -250,12 +341,26 @@ public class EventCoordinationController {
     return new EventTypeResponse(eventType.getId(), eventType.getNazwa());
   }
 
+  @PatchMapping("/event-types/{id}")
+  @Operation(summary = "Partially update event type")
+  public EventTypeResponse patchEventType(@PathVariable Long id, @RequestBody PatchEventTypeRequest req) {
+    TypWydarzenia eventType = service.patchEventType(id, req.name());
+    return new EventTypeResponse(eventType.getId(), eventType.getNazwa());
+  }
+
+  @DeleteMapping("/event-types/{id}")
+  @Operation(summary = "Delete event type")
+  public ResponseEntity<Void> deleteEventType(@PathVariable Long id) {
+    service.deleteEventType(id);
+    return ResponseEntity.noContent().build();
+  }
+
   // ── SCHEDULES — UC: Prowadzenie harmonogramu ─────────────────────────────────
 
   @GetMapping("/schedules")
-  @Operation(summary = "List all schedules")
-  public List<ScheduleResponse> listSchedules() {
-    return service.listSchedules().stream().map(this::toScheduleResponse).toList();
+  @Operation(summary = "List schedules (optional filter: date)")
+  public List<ScheduleResponse> listSchedules(@RequestParam(required = false) LocalDate date) {
+    return service.listSchedules(date).stream().map(this::toScheduleResponse).toList();
   }
 
   @PostMapping("/schedules")
@@ -271,6 +376,20 @@ public class EventCoordinationController {
   public ScheduleResponse updateSchedule(@PathVariable Long id, @RequestBody AddScheduleRequest req) {
     return toScheduleResponse(service.updateSchedule(id,
         new CreateScheduleCommand(req.date(), req.time(), req.description())));
+  }
+
+  @PatchMapping("/schedules/{id}")
+  @Operation(summary = "Partially update schedule")
+  public ScheduleResponse patchSchedule(@PathVariable Long id, @RequestBody PatchScheduleRequest req) {
+    return toScheduleResponse(service.patchSchedule(id,
+        new EventCoordinationService.PatchScheduleCommand(req.date(), req.time(), req.description())));
+  }
+
+  @DeleteMapping("/schedules/{id}")
+  @Operation(summary = "Delete schedule")
+  public ResponseEntity<Void> deleteSchedule(@PathVariable Long id) {
+    service.deleteSchedule(id);
+    return ResponseEntity.noContent().build();
   }
 
   // ── Mapping helpers ──────────────────────────────────────────────────────────
@@ -324,6 +443,9 @@ public class EventCoordinationController {
   public record AddEventRequest(String name, LocalDateTime dateTime, String place,
       String description, Long parishId, Long eventTypeId, Long scheduleId) {}
 
+  public record PatchEventRequest(String name, LocalDateTime dateTime, String place,
+      String description, Long parishId, Long eventTypeId, Long scheduleId) {}
+
   public record EventResponse(Long id, String name, LocalDateTime dateTime, String place,
       String description, Long parishId, Long eventTypeId, Long scheduleId) {}
 
@@ -340,18 +462,26 @@ public class EventCoordinationController {
 
   public record AddIntentionRequest(String content, LocalDate date, String donor) {}
 
+  public record PatchIntentionRequest(String content, LocalDate date, String donor, String status) {}
+
   public record IntentionResponse(Long id, String content, LocalDate date,
       String donor, String status, Long eventId) {}
 
   public record AddAnnouncementRequest(String content) {}
 
+  public record PatchAnnouncementRequest(String content) {}
+
   public record AnnouncementResponse(Long id, String content, Long eventId) {}
 
   public record AddOfferingRequest(BigDecimal amount, LocalDate date, String type) {}
 
+  public record PatchOfferingRequest(BigDecimal amount, LocalDate date, String type) {}
+
   public record OfferingResponse(Long id, BigDecimal amount, LocalDate date, String type, Long eventId) {}
 
   public record AddPersonRequest(String firstName, String lastName, String role) {}
+
+  public record PatchPersonRequest(String firstName, String lastName, String role) {}
 
   public record ParticipantResponse(Long id, String firstName, String lastName, String role, Long eventId) {}
 
@@ -359,9 +489,13 @@ public class EventCoordinationController {
 
   public record AddEventTypeRequest(String name) {}
 
+  public record PatchEventTypeRequest(String name) {}
+
   public record EventTypeResponse(Long id, String name) {}
 
   public record AddScheduleRequest(LocalDate date, LocalTime time, String description) {}
+
+  public record PatchScheduleRequest(LocalDate date, LocalTime time, String description) {}
 
   public record ScheduleResponse(Long id, LocalDate date, LocalTime time, String description) {}
 

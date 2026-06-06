@@ -7,6 +7,7 @@ import edu.prz.eparish.grupyparafialne.domain.czlonkostwo.CzlonkostwoRepozytoriu
 import edu.prz.eparish.grupyparafialne.domain.grupa.GrupaParafialna;
 import edu.prz.eparish.grupyparafialne.domain.grupa.GrupaParafialnaAgregat;
 import edu.prz.eparish.grupyparafialne.domain.grupa.GrupaParafialnaRepozytorium;
+import edu.prz.eparish.api.support.ListFilterSupport;
 import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,10 @@ public class ParishGroupService {
   public record AddMembershipCommand(
       Long groupId, Long parishionerId, LocalDate startDate, LocalDate endDate) {}
 
+  public record PatchGroupCommand(String name, String description, String supervisor) {}
+
+  public record PatchMembershipCommand(LocalDate startDate, LocalDate endDate) {}
+
   // ── UC: Dodaj grupę parafialną ───────────────────────────────────────────────
 
   public GrupaParafialna createGroup(CreateGroupCommand cmd) {
@@ -49,8 +54,31 @@ public class ParishGroupService {
     return groupRepo.save(group);
   }
 
-  public List<GrupaParafialna> listGroups() {
-    return groupRepo.findAll();
+  public GrupaParafialna patchGroup(Long id, PatchGroupCommand cmd) {
+    GrupaParafialna group = requireGroup(id);
+    if (cmd.name() != null) {
+      group.setNazwa(cmd.name());
+    }
+    if (cmd.description() != null) {
+      group.setOpis(cmd.description());
+    }
+    if (cmd.supervisor() != null) {
+      group.setOpiekun(cmd.supervisor());
+    }
+    return groupRepo.save(group);
+  }
+
+  public void deleteGroup(Long id) {
+    if (!groupRepo.existsById(id)) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Group not found");
+    }
+    groupRepo.deleteById(id);
+  }
+
+  public List<GrupaParafialna> listGroups(String name, String supervisor) {
+    return ListFilterSupport.filter(groupRepo.findAll(),
+        ListFilterSupport.containsIgnoreCase(name, GrupaParafialna::getNazwa),
+        ListFilterSupport.containsIgnoreCase(supervisor, GrupaParafialna::getOpiekun));
   }
 
   public GrupaParafialna getGroup(Long id) {
@@ -77,8 +105,35 @@ public class ParishGroupService {
     return membershipRepo.save(membership);
   }
 
-  public List<Czlonkostwo> listMemberships() {
-    return membershipRepo.findAll();
+  public Czlonkostwo patchMembership(Long membershipId, PatchMembershipCommand cmd) {
+    Czlonkostwo membership = membershipRepo.findById(membershipId)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Membership not found"));
+    if (cmd.startDate() != null) {
+      membership.setDataOdKiedy(cmd.startDate());
+    }
+    if (cmd.endDate() != null) {
+      membership.setDataDoKiedy(cmd.endDate());
+    }
+    return membershipRepo.save(membership);
+  }
+
+  public void deleteMembership(Long membershipId) {
+    if (!membershipRepo.existsById(membershipId)) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Membership not found");
+    }
+    membershipRepo.deleteById(membershipId);
+  }
+
+  public List<Czlonkostwo> listMemberships(Long groupId, Long parishionerId) {
+    List<Czlonkostwo> source;
+    if (groupId != null) {
+      source = membershipRepo.findByGrupa_Id(groupId);
+    } else if (parishionerId != null) {
+      source = membershipRepo.findByParafianin_Id(parishionerId);
+    } else {
+      source = membershipRepo.findAll();
+    }
+    return source;
   }
 
   // ── Agregat GrupaParafialnaAgregat ────────────────────────────────────────────

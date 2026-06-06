@@ -23,11 +23,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -41,9 +43,12 @@ public class ParishInformationController {
   // ── DIOCESES — UC: Dodaj diecezję ───────────────────────────────────────────
 
   @GetMapping("/dioceses")
-  @Operation(summary = "List all dioceses")
-  public List<DioceseResponse> listDioceses() {
-    return service.listDioceses().stream().map(this::toDioceseResponse).toList();
+  @Operation(summary = "List dioceses (optional filters: name, see, bishop)")
+  public List<DioceseResponse> listDioceses(
+      @RequestParam(required = false) String name,
+      @RequestParam(required = false) String see,
+      @RequestParam(required = false) String bishop) {
+    return service.listDioceses(name, see, bishop).stream().map(this::toDioceseResponse).toList();
   }
 
   @PostMapping("/dioceses")
@@ -59,12 +64,31 @@ public class ParishInformationController {
     return toDioceseResponse(service.updateDiocese(id, new AddDioceseCommand(req.name(), req.see(), req.bishop())));
   }
 
+  @PatchMapping("/dioceses/{id}")
+  @Operation(summary = "Partially update diocese")
+  public DioceseResponse patchDiocese(@PathVariable Long id, @RequestBody PatchDioceseRequest req) {
+    return toDioceseResponse(service.patchDiocese(id,
+        new ParishInformationService.PatchDioceseCommand(req.name(), req.see(), req.bishop())));
+  }
+
+  @DeleteMapping("/dioceses/{id}")
+  @Operation(summary = "Delete diocese")
+  public ResponseEntity<Void> deleteDiocese(@PathVariable Long id) {
+    service.deleteDiocese(id);
+    return ResponseEntity.noContent().build();
+  }
+
   // ── LOCALITIES — UC: Dodaj miejscowość ──────────────────────────────────────
 
   @GetMapping("/localities")
-  @Operation(summary = "List all localities")
-  public List<LocalityResponse> listLocalities() {
-    return service.listLocalities().stream().map(this::toLocalityResponse).toList();
+  @Operation(summary = "List localities (optional filters: dioceseId, province, postalCode, name)")
+  public List<LocalityResponse> listLocalities(
+      @RequestParam(required = false) Long dioceseId,
+      @RequestParam(required = false) String province,
+      @RequestParam(required = false) String postalCode,
+      @RequestParam(required = false) String name) {
+    return service.listLocalities(dioceseId, province, postalCode, name).stream()
+        .map(this::toLocalityResponse).toList();
   }
 
   @PostMapping("/localities")
@@ -75,12 +99,36 @@ public class ParishInformationController {
     return ResponseEntity.status(HttpStatus.CREATED).body(toLocalityResponse(m));
   }
 
+  @PutMapping("/localities/{id}")
+  @Operation(summary = "Update locality")
+  public LocalityResponse updateLocality(@PathVariable Long id, @RequestBody AddLocalityRequest req) {
+    return toLocalityResponse(service.updateLocality(id, new AddLocalityCommand(
+        req.name(), req.postalCode(), req.province(), req.dioceseId())));
+  }
+
+  @PatchMapping("/localities/{id}")
+  @Operation(summary = "Partially update locality")
+  public LocalityResponse patchLocality(@PathVariable Long id, @RequestBody PatchLocalityRequest req) {
+    return toLocalityResponse(service.patchLocality(id,
+        new ParishInformationService.PatchLocalityCommand(
+            req.name(), req.postalCode(), req.province(), req.dioceseId())));
+  }
+
+  @DeleteMapping("/localities/{id}")
+  @Operation(summary = "Delete locality")
+  public ResponseEntity<Void> deleteLocality(@PathVariable Long id) {
+    service.deleteLocality(id);
+    return ResponseEntity.noContent().build();
+  }
+
   // ── PARISHES — UC: Zarządzanie parafią ──────────────────────────────────────
 
   @GetMapping("/parishes")
-  @Operation(summary = "List all parishes")
-  public List<ParishResponse> listParishes() {
-    return service.listParishes().stream().map(this::toParishResponse).toList();
+  @Operation(summary = "List parishes (optional filters: localityId, name)")
+  public List<ParishResponse> listParishes(
+      @RequestParam(required = false) Long localityId,
+      @RequestParam(required = false) String name) {
+    return service.listParishes(localityId, name).stream().map(this::toParishResponse).toList();
   }
 
   @GetMapping("/parishes/{id}")
@@ -104,12 +152,32 @@ public class ParishInformationController {
         req.name(), req.address(), req.phone(), req.email(), req.erectionDate(), req.localityId())));
   }
 
+  @PatchMapping("/parishes/{id}")
+  @Operation(summary = "Partially update parish")
+  public ParishResponse patchParish(@PathVariable Long id, @RequestBody PatchParishRequest req) {
+    return toParishResponse(service.patchParish(id, new ParishInformationService.PatchParishCommand(
+        req.name(), req.address(), req.phone(), req.email(), req.erectionDate(), req.localityId())));
+  }
+
+  @DeleteMapping("/parishes/{id}")
+  @Operation(summary = "Delete parish")
+  public ResponseEntity<Void> deleteParish(@PathVariable Long id) {
+    service.deleteParish(id);
+    return ResponseEntity.noContent().build();
+  }
+
   // ── PARISHIONERS — UC: Zarządzanie parafianami ──────────────────────────────
 
   @GetMapping("/parishioners")
-  @Operation(summary = "List all parishioners")
-  public List<ParishionerResponse> listParishioners() {
-    return service.listParishioners().stream().map(this::toParishionerResponse).toList();
+  @Operation(summary = "List parishioners (optional filters: parishId, familyId, pesel, firstName, lastName)")
+  public List<ParishionerResponse> listParishioners(
+      @RequestParam(required = false) Long parishId,
+      @RequestParam(required = false) Long familyId,
+      @RequestParam(required = false) String pesel,
+      @RequestParam(required = false) String firstName,
+      @RequestParam(required = false) String lastName) {
+    return service.listParishioners(parishId, familyId, pesel, firstName, lastName).stream()
+        .map(this::toParishionerResponse).toList();
   }
 
   @GetMapping("/parishioners/{id}")
@@ -136,6 +204,16 @@ public class ParishInformationController {
         req.phone(), req.email(), req.parishId(), req.familyId())));
   }
 
+  @PatchMapping("/parishioners/{id}")
+  @Operation(summary = "Partially update parishioner")
+  public ParishionerResponse patchParishioner(
+      @PathVariable Long id, @RequestBody PatchParishionerRequest req) {
+    return toParishionerResponse(service.patchParishioner(id,
+        new ParishInformationService.PatchParishionerCommand(
+            req.firstName(), req.lastName(), req.pesel(), req.birthDate(),
+            req.phone(), req.email(), req.parishId(), req.familyId())));
+  }
+
   @DeleteMapping("/parishioners/{id}")
   @Operation(summary = "Remove parishioner")
   public ResponseEntity<Void> deleteParishioner(@PathVariable Long id) {
@@ -157,9 +235,9 @@ public class ParishInformationController {
   // ── RECORDS — UC: Prowadzenie kartotek parafian ──────────────────────────────
 
   @GetMapping("/records")
-  @Operation(summary = "List all records")
-  public List<RecordResponse> listRecords() {
-    return service.listRecords().stream().map(this::toRecordResponse).toList();
+  @Operation(summary = "List records (optional filter: parishionerId)")
+  public List<RecordResponse> listRecords(@RequestParam(required = false) Long parishionerId) {
+    return service.listRecords(parishionerId).stream().map(this::toRecordResponse).toList();
   }
 
   @PostMapping("/records")
@@ -184,6 +262,13 @@ public class ParishInformationController {
     return toRecordResponse(service.updateRecord(id, req.description()));
   }
 
+  @PatchMapping("/records/{id}")
+  @Operation(summary = "Partially update record")
+  public RecordResponse patchRecord(@PathVariable Long id, @RequestBody PatchRecordRequest req) {
+    return toRecordResponse(service.patchRecord(id,
+        new ParishInformationService.PatchRecordCommand(req.description())));
+  }
+
   @DeleteMapping("/records/{id}")
   @Operation(summary = "Delete record")
   public ResponseEntity<Void> deleteRecord(@PathVariable Long id) {
@@ -194,9 +279,11 @@ public class ParishInformationController {
   // ── DOCUMENTS — UC: Zarządzanie dokumentacją ────────────────────────────────
 
   @GetMapping("/documents")
-  @Operation(summary = "List all documents")
-  public List<DocumentResponse> listDocuments() {
-    return service.listDocuments().stream().map(this::toDocumentResponse).toList();
+  @Operation(summary = "List documents (optional filters: recordId, type)")
+  public List<DocumentResponse> listDocuments(
+      @RequestParam(required = false) Long recordId,
+      @RequestParam(required = false) String type) {
+    return service.listDocuments(recordId, type).stream().map(this::toDocumentResponse).toList();
   }
 
   @PostMapping("/parishioners/{id}/record/documents")
@@ -220,6 +307,13 @@ public class ParishInformationController {
   @Operation(summary = "Update document")
   public DocumentResponse updateDocument(@PathVariable Long id, @RequestBody UpdateDocumentRequest req) {
     return toDocumentResponse(service.updateDocument(id, req.type(), req.issueDate(), req.description()));
+  }
+
+  @PatchMapping("/documents/{id}")
+  @Operation(summary = "Partially update document")
+  public DocumentResponse patchDocument(@PathVariable Long id, @RequestBody PatchDocumentRequest req) {
+    return toDocumentResponse(service.patchDocument(id,
+        new ParishInformationService.PatchDocumentCommand(req.type(), req.issueDate(), req.description())));
   }
 
   @DeleteMapping("/documents/{id}")
@@ -277,17 +371,23 @@ public class ParishInformationController {
   // ── Request / Response records ───────────────────────────────────────────────
 
   public record AddDioceseRequest(String name, String see, String bishop) {}
+  public record PatchDioceseRequest(String name, String see, String bishop) {}
   public record DioceseResponse(Long id, String name, String see, String bishop) {}
 
   public record AddLocalityRequest(String name, String postalCode, String province, Long dioceseId) {}
+  public record PatchLocalityRequest(String name, String postalCode, String province, Long dioceseId) {}
   public record LocalityResponse(Long id, String name, String postalCode, String province, Long dioceseId) {}
 
   public record AddParishRequest(String name, String address, String phone, String email,
+      LocalDate erectionDate, Long localityId) {}
+  public record PatchParishRequest(String name, String address, String phone, String email,
       LocalDate erectionDate, Long localityId) {}
   public record ParishResponse(Long id, String name, String address, String phone, String email,
       LocalDate erectionDate, Long localityId) {}
 
   public record AddParishionerRequest(String firstName, String lastName, String pesel,
+      LocalDate birthDate, String phone, String email, Long parishId, Long familyId) {}
+  public record PatchParishionerRequest(String firstName, String lastName, String pesel,
       LocalDate birthDate, String phone, String email, Long parishId, Long familyId) {}
   public record ParishionerResponse(Long id, String firstName, String lastName, String pesel,
       LocalDate birthDate, String phone, String email, Long parishId, Long familyId) {}
@@ -297,9 +397,11 @@ public class ParishInformationController {
 
   public record AddRecordRequest(LocalDate createdAt, String description, Long parishionerId) {}
   public record UpdateRecordRequest(String description) {}
+  public record PatchRecordRequest(String description) {}
   public record RecordResponse(Long id, LocalDate createdAt, String description, Long parishionerId) {}
 
   public record AddDocumentRequest(String type, LocalDate issueDate, String description, Long recordId) {}
   public record UpdateDocumentRequest(String type, LocalDate issueDate, String description) {}
+  public record PatchDocumentRequest(String type, LocalDate issueDate, String description) {}
   public record DocumentResponse(Long id, String type, LocalDate issueDate, String description, Long recordId) {}
 }

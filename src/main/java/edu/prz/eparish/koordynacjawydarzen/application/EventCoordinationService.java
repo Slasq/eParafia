@@ -19,6 +19,7 @@ import edu.prz.eparish.koordynacjawydarzen.domain.uczestnik.UczestnikRepozytoriu
 import edu.prz.eparish.koordynacjawydarzen.domain.wydarzenie.WydarzenieAgregat;
 import edu.prz.eparish.koordynacjawydarzen.domain.wydarzenie.WydarzenieParafialne;
 import edu.prz.eparish.koordynacjawydarzen.domain.wydarzenie.WydarzenieParafialneRepozytorium;
+import edu.prz.eparish.api.support.ListFilterSupport;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -60,6 +61,20 @@ public class EventCoordinationService {
 
   public record AssignPersonCommand(String firstName, String lastName, String role) {}
 
+  public record PatchIntentionCommand(String content, LocalDate date, String donor, String status) {}
+
+  public record PatchAnnouncementCommand(String content) {}
+
+  public record PatchOfferingCommand(BigDecimal amount, LocalDate date, String type) {}
+
+  public record PatchPersonCommand(String firstName, String lastName, String role) {}
+
+  public record PatchEventCommand(
+      String name, LocalDateTime dateTime, String place, String description,
+      Long parishId, Long eventTypeId, Long scheduleId) {}
+
+  public record PatchScheduleCommand(LocalDate date, LocalTime time, String description) {}
+
   // ── UC: Zarządzanie wydarzeniami parafialnymi ────────────────────────────────
 
   public WydarzenieParafialne createEvent(CreateEventCommand cmd) {
@@ -91,8 +106,38 @@ public class EventCoordinationService {
     eventRepo.deleteById(id);
   }
 
-  public List<WydarzenieParafialne> listEvents() {
-    return eventRepo.findAll();
+  public List<WydarzenieParafialne> listEvents(Long parishId, Long eventTypeId, Long scheduleId, String name) {
+    return ListFilterSupport.filter(eventRepo.findAll(),
+        ListFilterSupport.eqLong(parishId, e -> e.getParafia() != null ? e.getParafia().getId() : null),
+        ListFilterSupport.eqLong(eventTypeId, e -> e.getTypWydarzenia() != null ? e.getTypWydarzenia().getId() : null),
+        ListFilterSupport.eqLong(scheduleId, e -> e.getHarmonogram() != null ? e.getHarmonogram().getId() : null),
+        ListFilterSupport.containsIgnoreCase(name, WydarzenieParafialne::getNazwa));
+  }
+
+  public WydarzenieParafialne patchEvent(Long id, PatchEventCommand cmd) {
+    WydarzenieParafialne event = requireEvent(id);
+    if (cmd.name() != null) {
+      event.setNazwa(cmd.name());
+    }
+    if (cmd.dateTime() != null) {
+      event.setDataIGodzina(cmd.dateTime());
+    }
+    if (cmd.place() != null) {
+      event.setMiejsce(cmd.place());
+    }
+    if (cmd.description() != null) {
+      event.setOpis(cmd.description());
+    }
+    if (cmd.parishId() != null) {
+      event.setParafia(requireParish(cmd.parishId()));
+    }
+    if (cmd.eventTypeId() != null) {
+      event.setTypWydarzenia(requireEventType(cmd.eventTypeId()));
+    }
+    if (cmd.scheduleId() != null) {
+      event.setHarmonogram(requireSchedule(cmd.scheduleId()));
+    }
+    return eventRepo.save(event);
   }
 
   public WydarzenieParafialne getEvent(Long id) {
@@ -115,8 +160,31 @@ public class EventCoordinationService {
     return scheduleRepo.save(schedule);
   }
 
-  public List<Harmonogram> listSchedules() {
-    return scheduleRepo.findAll();
+  public Harmonogram patchSchedule(Long id, PatchScheduleCommand cmd) {
+    Harmonogram schedule = scheduleRepo.findById(id)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Schedule not found"));
+    if (cmd.date() != null) {
+      schedule.setData(cmd.date());
+    }
+    if (cmd.time() != null) {
+      schedule.setGodzina(cmd.time());
+    }
+    if (cmd.description() != null) {
+      schedule.setOpis(cmd.description());
+    }
+    return scheduleRepo.save(schedule);
+  }
+
+  public void deleteSchedule(Long id) {
+    if (!scheduleRepo.existsById(id)) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Schedule not found");
+    }
+    scheduleRepo.deleteById(id);
+  }
+
+  public List<Harmonogram> listSchedules(LocalDate date) {
+    return ListFilterSupport.filter(scheduleRepo.findAll(),
+        ListFilterSupport.eq(date, Harmonogram::getData));
   }
 
   // ── UC: Zarządzanie typami wydarzeń ─────────────────────────────────────────
@@ -132,8 +200,24 @@ public class EventCoordinationService {
     return eventTypeRepo.save(eventType);
   }
 
-  public List<TypWydarzenia> listEventTypes() {
-    return eventTypeRepo.findAll();
+  public TypWydarzenia patchEventType(Long id, String name) {
+    TypWydarzenia eventType = requireEventType(id);
+    if (name != null) {
+      eventType.setNazwa(name);
+    }
+    return eventTypeRepo.save(eventType);
+  }
+
+  public void deleteEventType(Long id) {
+    if (!eventTypeRepo.existsById(id)) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Event type not found");
+    }
+    eventTypeRepo.deleteById(id);
+  }
+
+  public List<TypWydarzenia> listEventTypes(String name) {
+    return ListFilterSupport.filter(eventTypeRepo.findAll(),
+        ListFilterSupport.containsIgnoreCase(name, TypWydarzenia::getNazwa));
   }
 
   // ── UC: Przypisanie intencji ─────────────────────────────────────────────────
@@ -153,8 +237,39 @@ public class EventCoordinationService {
     return intentionRepo.save(intention);
   }
 
-  public List<Intencja> listIntentions() {
-    return intentionRepo.findAll();
+  public Intencja patchIntention(Long id, PatchIntentionCommand cmd) {
+    Intencja intention = intentionRepo.findById(id)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Intention not found"));
+    if (cmd.content() != null) {
+      intention.setTresc(cmd.content());
+    }
+    if (cmd.date() != null) {
+      intention.setData(cmd.date());
+    }
+    if (cmd.donor() != null) {
+      intention.setOfiarodawca(cmd.donor());
+    }
+    if (cmd.status() != null) {
+      intention.setStatus(cmd.status());
+    }
+    return intentionRepo.save(intention);
+  }
+
+  public void deleteIntention(Long id) {
+    if (!intentionRepo.existsById(id)) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Intention not found");
+    }
+    intentionRepo.deleteById(id);
+  }
+
+  public List<Intencja> listIntentions(Long eventId, String status, LocalDate date, String donor) {
+    List<Intencja> source = eventId != null
+        ? intentionRepo.findByWydarzenie_Id(eventId)
+        : intentionRepo.findAll();
+    return ListFilterSupport.filter(source,
+        ListFilterSupport.eq(status, Intencja::getStatus),
+        ListFilterSupport.eq(date, Intencja::getData),
+        ListFilterSupport.containsIgnoreCase(donor, Intencja::getOfiarodawca));
   }
 
   public Intencja getIntention(Long id) {
@@ -170,7 +285,26 @@ public class EventCoordinationService {
     return announcementRepo.save(announcement);
   }
 
-  public List<Ogloszenie> listAnnouncements() {
+  public Ogloszenie patchAnnouncement(Long id, PatchAnnouncementCommand cmd) {
+    Ogloszenie announcement = announcementRepo.findById(id)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Announcement not found"));
+    if (cmd.content() != null) {
+      announcement.setTresc(cmd.content());
+    }
+    return announcementRepo.save(announcement);
+  }
+
+  public void deleteAnnouncement(Long id) {
+    if (!announcementRepo.existsById(id)) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Announcement not found");
+    }
+    announcementRepo.deleteById(id);
+  }
+
+  public List<Ogloszenie> listAnnouncements(Long eventId) {
+    if (eventId != null) {
+      return announcementRepo.findByWydarzenie_Id(eventId);
+    }
     return announcementRepo.findAll();
   }
 
@@ -187,8 +321,39 @@ public class EventCoordinationService {
     return offeringRepo.save(offering);
   }
 
-  public List<Ofiara> listOfferings() {
-    return offeringRepo.findAll();
+  public Ofiara getOffering(Long id) {
+    return offeringRepo.findById(id)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Offering not found"));
+  }
+
+  public Ofiara patchOffering(Long id, PatchOfferingCommand cmd) {
+    Ofiara offering = getOffering(id);
+    if (cmd.amount() != null) {
+      offering.setKwota(cmd.amount());
+    }
+    if (cmd.date() != null) {
+      offering.setData(cmd.date());
+    }
+    if (cmd.type() != null) {
+      offering.setTyp(cmd.type());
+    }
+    return offeringRepo.save(offering);
+  }
+
+  public void deleteOffering(Long id) {
+    if (!offeringRepo.existsById(id)) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Offering not found");
+    }
+    offeringRepo.deleteById(id);
+  }
+
+  public List<Ofiara> listOfferings(Long eventId, String type, LocalDate date) {
+    List<Ofiara> source = eventId != null
+        ? offeringRepo.findByWydarzenie_Id(eventId)
+        : offeringRepo.findAll();
+    return ListFilterSupport.filter(source,
+        ListFilterSupport.eq(type, Ofiara::getTyp),
+        ListFilterSupport.eq(date, Ofiara::getData));
   }
 
   // ── UC: Przypisanie uczestników i organizatorów ──────────────────────────────
@@ -207,8 +372,27 @@ public class EventCoordinationService {
     participantRepo.deleteById(id);
   }
 
-  public List<Uczestnik> listParticipants() {
-    return participantRepo.findAll();
+  public Uczestnik patchParticipant(Long id, PatchPersonCommand cmd) {
+    Uczestnik participant = participantRepo.findById(id)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Participant not found"));
+    if (cmd.firstName() != null) {
+      participant.setImie(cmd.firstName());
+    }
+    if (cmd.lastName() != null) {
+      participant.setNazwisko(cmd.lastName());
+    }
+    if (cmd.role() != null) {
+      participant.setRola(cmd.role());
+    }
+    return participantRepo.save(participant);
+  }
+
+  public List<Uczestnik> listParticipants(Long eventId, String role) {
+    List<Uczestnik> source = eventId != null
+        ? participantRepo.findByWydarzenie_Id(eventId)
+        : participantRepo.findAll();
+    return ListFilterSupport.filter(source,
+        ListFilterSupport.eq(role, Uczestnik::getRola));
   }
 
   public Organizator assignOrganizer(Long eventId, AssignPersonCommand cmd) {
@@ -225,8 +409,27 @@ public class EventCoordinationService {
     organizerRepo.deleteById(id);
   }
 
-  public List<Organizator> listOrganizers() {
-    return organizerRepo.findAll();
+  public Organizator patchOrganizer(Long id, PatchPersonCommand cmd) {
+    Organizator organizer = organizerRepo.findById(id)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Organizer not found"));
+    if (cmd.firstName() != null) {
+      organizer.setImie(cmd.firstName());
+    }
+    if (cmd.lastName() != null) {
+      organizer.setNazwisko(cmd.lastName());
+    }
+    if (cmd.role() != null) {
+      organizer.setRola(cmd.role());
+    }
+    return organizerRepo.save(organizer);
+  }
+
+  public List<Organizator> listOrganizers(Long eventId, String role) {
+    List<Organizator> source = eventId != null
+        ? organizerRepo.findByWydarzenie_Id(eventId)
+        : organizerRepo.findAll();
+    return ListFilterSupport.filter(source,
+        ListFilterSupport.eq(role, Organizator::getRola));
   }
 
   // ── Agregat WydarzenieAgregat ────────────────────────────────────────────────

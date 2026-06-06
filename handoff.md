@@ -1,6 +1,6 @@
 # eParafia — przekazanie projektu (handoff)
 
-Dokument dla zespołu przejmującego dalszą pracę. Ostatnia aktualizacja stanu: **maj 2026**.
+Dokument dla zespołu przejmującego dalszą pracę. Ostatnia aktualizacja stanu: **czerwiec 2026**.
 
 | | |
 |---|---|
@@ -97,6 +97,32 @@ Repository (JPA)  ← persystencja
 - **Kontrolery** (`api/*.java`) — cienkie delegaty: przyjmują request record → wywołują metodę serwisu → zwracają response record. **Żadnej logiki**.
 - **Agregaty** (`domain/*/Agregat.java`) — POJO (nie encje JPA), budowane w serwisach z wielu repozytoriów; zawierają obliczenia domenowe.
 - **EntityIds** (`api/support/EntityIds.java`) — `nextId(repo, getter)` zwraca `max(id) + 1`. Wywoływany wyłącznie z fabryk.
+- **ListFilterSupport** (`api/support/ListFilterSupport.java`) — helper filtrowania list po opcjonalnych parametrach query (używany w serwisach przy `list*`).
+
+### API — PATCH, DELETE, filtrowanie
+
+Od czerwca 2026 każdy główny zasób listowy obsługuje pełny CRUD-lite:
+
+| Operacja | Opis |
+|----------|------|
+| **GET** (lista) | Opcjonalne query params — filtrowanie po polach encji i kluczach obcych (AND) |
+| **GET** `/{id}` | Pojedynczy rekord (gdzie dotyczy) |
+| **POST** | Tworzenie |
+| **PUT** | Pełna aktualizacja (tam, gdzie była wcześniej) |
+| **PATCH** | Częściowa aktualizacja — tylko niepuste pola w body |
+| **DELETE** | Usunięcie — odpowiedź `204 No Content` |
+
+Przykład testowy (ogłoszenia wydarzenia):
+
+```
+GET  /api/announcements?eventId=1     → tylko ogłoszenia wydarzenia 1
+PATCH /api/announcements/3  {"content":"..."}
+DELETE /api/announcements/3
+```
+
+Pełna tabela parametrów filtrowania: [`README.md` — sekcja „Filtrowanie list”](README.md#filtrowanie-list-query-params).
+
+Endpointy specjalne bez zmian: `PUT .../realize`, `PUT .../complete`, `PUT .../terminate`, `PUT /families/{id}/name`.
 
 ---
 
@@ -113,7 +139,9 @@ Repository (JPA)  ← persystencja
 | 6 kontrolerów REST w `api/` | ✅ |
 | 3 agregaty domenowe z metodami | ✅ |
 | 20 przypadków użycia zaimplementowanych | ✅ |
-| PUT / DELETE na kluczowych zasobach | ✅ |
+| PATCH / DELETE na wszystkich głównych zasobach listowych | ✅ |
+| Filtrowanie list GET po query params (`ListFilterSupport`) | ✅ |
+| PUT / DELETE na kluczowych zasobach (wcześniejsze) | ✅ |
 | Swagger UI (`/swagger-ui/index.html`) | ✅ działający na Java 26 |
 | `OpenApiConfig` z pełną dokumentacją UC | ✅ |
 | `data.sql` — pełny seed | ✅ |
@@ -125,12 +153,12 @@ Repository (JPA)  ← persystencja
 
 | Serwis | UC (metody) |
 |--------|------------|
-| `EventCoordinationService` | createEvent, updateEvent, deleteEvent, assignIntention, **realizeIntention**, addAnnouncement, recordOffering, assignParticipant, assignOrganizer, getEventAggregate |
-| `ParishInformationService` | addDiocese, updateDiocese, addLocality, addParish, updateParish, registerParishioner, updateParishioner, deleteParishioner, createRecord, updateRecord, addDocument, getParishionerAggregate |
-| `PastoralCareService` | addFamily, updateFamilyName, assignParishionerToFamily, addFamilyAddress, updateFamilyAddress |
-| `ParishGroupService` | createGroup, updateGroup, addMembership, terminateMembership, getGroupAggregate |
-| `ParishOperationsService` | addEmployee, addPosition, assignDuty, **completeDuty** |
-| `SacramentalMinistryService` | addPriest, addSacrament, registerSacrament |
+| `EventCoordinationService` | createEvent, updateEvent, **patchEvent**, deleteEvent, assignIntention, **patchIntention**, **deleteIntention**, **realizeIntention**, addAnnouncement, **patchAnnouncement**, **deleteAnnouncement**, recordOffering, **patchOffering**, **deleteOffering**, assignParticipant, **patchParticipant**, **removeParticipant**, assignOrganizer, **patchOrganizer**, **removeOrganizer**, **patchEventType**, **deleteEventType**, **patchSchedule**, **deleteSchedule**, getEventAggregate, **list\*** z filtrami |
+| `ParishInformationService` | addDiocese, updateDiocese, **patchDiocese**, **deleteDiocese**, addLocality, **updateLocality**, **patchLocality**, **deleteLocality**, addParish, updateParish, **patchParish**, **deleteParish**, registerParishioner, updateParishioner, **patchParishioner**, deleteParishioner, createRecord, updateRecord, **patchRecord**, deleteRecord, addDocument, **patchDocument**, deleteDocument, getParishionerAggregate, **list\*** z filtrami |
+| `PastoralCareService` | addFamily, updateFamilyName, **patchFamily**, **deleteFamily**, assignParishionerToFamily, addFamilyAddress, updateFamilyAddress, **patchFamilyAddress**, **deleteFamilyAddress**, **list\*** z filtrami |
+| `ParishGroupService` | createGroup, updateGroup, **patchGroup**, **deleteGroup**, addMembership, **patchMembership**, **deleteMembership**, terminateMembership, getGroupAggregate, **list\*** z filtrami |
+| `ParishOperationsService` | addEmployee, **patchEmployee**, **deleteEmployee**, addPosition, **patchPosition**, **deletePosition**, assignDuty, **patchDuty**, **deleteDuty**, **completeDuty**, **list\*** z filtrami |
+| `SacramentalMinistryService` | addPriest, **patchPriest**, **deletePriest**, addSacrament, **patchSacrament**, **deleteSacrament**, registerSacrament, **patchAdministration**, **deleteAdministration**, **list\*** z filtrami |
 
 ### Metody domenowe agregatów
 
@@ -173,12 +201,15 @@ Po świeżym starcie dostępne:
 
 | ID | Zasób |
 |----|-------|
-| 1 | diecezja, parafia, stanowiska (1–2), typy wydarzeń, harmonogram, **wydarzenie**, grupy (1–2), sakramenty (1–7), ksiądz, rodzina, parafianin |
+| 1 | diecezja, miejscowość, parafia, stanowiska (1–2), pracownik, obowiązki (1–2), typy wydarzeń, harmonogramy (1–2), **wydarzenia (1–2)**, intencje (1–3), ogłoszenia (1–3), ofiary (1–3), uczestnicy (1–3), organizatorzy (1–2), grupy (1–2), członkostwa (1–2), sakramenty (1–7), księża (1–2), rodziny (1–2), adres rodziny, parafianie (1–3), kartoteka + dokumenty, udzielanie sakramentu |
 
 Kluczowe zależności w testach:
 - **Add Intention / Add Announcement** → wymagają `eventId: 1`
+- **List Announcements (filtrowanie)** → `GET /api/announcements?eventId=1` zwraca id 1–2 (nie id 3 — to event 2)
+- **List Intentions (filtrowanie)** → `GET /api/intentions?eventId=1&status=PLANNED` → intencja id=1
 - **Register Sacrament** → `parishionerId: 1`, `priestId: 1`, `sacramentId: 1`
 - **Add Employee** → `parishId: 1`, `positionId: 1`
+- **Documents filter** → `GET /api/documents?recordId=1` → dokumenty parafianina Jan Kowalski
 
 ---
 
@@ -195,7 +226,10 @@ Kluczowe zależności w testach:
 | Sacramental_Ministry | Register Sacrament | POST |
 | Parish_Information | List Parishes | GET |
 
-Brakuje requestów Bruno dla wielu nowych endpointów (offerings, participants, organizers, duties, aggregate GET-y itd.) — do dopisania przez testera.
+Brakuje requestów Bruno dla wielu endpointów — do dopisania przez testera, m.in.:
+- filtrowanie list (`GET ...?eventId=1`, `GET ...?parishId=1` itd.)
+- PATCH / DELETE na zasobach (np. announcements, intentions, offerings)
+- offerings, participants, organizers, duties, aggregate GET-y
 
 ---
 
@@ -223,6 +257,7 @@ Brakuje requestów Bruno dla wielu nowych endpointów (offerings, participants, 
 - ID generowane przez `EntityIds.nextId(repo, getter)` — `max(id)+1`. Przy równoległych requestach teoretycznie race condition — nieistotne dla demo i testów.
 - Baza plikowa H2 — przy `ddl-auto=update` + `data.sql` z `continue-on-error=true` stary plik `data/` może mieć niepełny seed → wystarczy usunąć `data/` i zrestartować.
 - Brak paginacji na listach GET — nieistotne dla rozmiaru danych w projekcie.
+- Filtrowanie działa w pamięci / przez wąskie zapytania repo — przy dużej bazie warto rozważyć paginację lub Criteria API.
 
 ---
 
@@ -240,6 +275,7 @@ src/main/java/edu/prz/eparish/
 │   ├── SacramentalMinistryController.java
 │   └── support/
 │       ├── EntityIds.java
+│       ├── ListFilterSupport.java
 │       └── OpenApiConfig.java
 ├── koordynacjawydarzen/
 │   ├── application/
@@ -312,6 +348,7 @@ H2 in-memory, `ddl-auto=create-drop` — izolacja między testami.
 
 | Data | Zmiana |
 |------|--------|
+| cze 2026 | PATCH + DELETE na wszystkich głównych zasobach; filtrowanie list GET po query params; `ListFilterSupport`; GET by id dla `offerings` i `sacrament-administrations` |
 | maj 2026 | Pełny refaktoring do DDD: 6 serwisów, 6 fabryk, 3 agregaty z metodami domenowymi; 20 UC; PUT/DELETE; Swagger UI |
 | maj 2026 | `ApiIntegrationTest` (9 scenariuszy), profil testowy |
 | maj 2026 | `HomeController`, `data.sql` pełny seed, `EntityIds` helper |

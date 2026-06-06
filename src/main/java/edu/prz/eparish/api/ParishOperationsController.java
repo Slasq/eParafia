@@ -13,12 +13,15 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -32,9 +35,11 @@ public class ParishOperationsController {
   // ── EMPLOYEES — UC: Zarządzanie personelem parafii ──────────────────────────
 
   @GetMapping("/employees")
-  @Operation(summary = "List all employees")
-  public List<EmployeeResponse> listEmployees() {
-    return service.listEmployees().stream().map(this::toEmployeeResponse).toList();
+  @Operation(summary = "List employees (optional filters: parishId, positionId)")
+  public List<EmployeeResponse> listEmployees(
+      @RequestParam(required = false) Long parishId,
+      @RequestParam(required = false) Long positionId) {
+    return service.listEmployees(parishId, positionId).stream().map(this::toEmployeeResponse).toList();
   }
 
   @GetMapping("/employees/{id}")
@@ -51,12 +56,27 @@ public class ParishOperationsController {
     return ResponseEntity.status(HttpStatus.CREATED).body(toEmployeeResponse(employee));
   }
 
+  @PatchMapping("/employees/{id}")
+  @Operation(summary = "Partially update employee")
+  public EmployeeResponse patchEmployee(@PathVariable Long id, @RequestBody PatchEmployeeRequest req) {
+    return toEmployeeResponse(service.patchEmployee(id,
+        new ParishOperationsService.PatchEmployeeCommand(
+            req.firstName(), req.lastName(), req.parishId(), req.positionId())));
+  }
+
+  @DeleteMapping("/employees/{id}")
+  @Operation(summary = "Delete employee")
+  public ResponseEntity<Void> deleteEmployee(@PathVariable Long id) {
+    service.deleteEmployee(id);
+    return ResponseEntity.noContent().build();
+  }
+
   // ── POSITIONS — UC: Przydzielanie stanowiska ─────────────────────────────────
 
   @GetMapping("/positions")
-  @Operation(summary = "List all positions")
-  public List<PositionResponse> listPositions() {
-    return service.listPositions().stream().map(this::toPositionResponse).toList();
+  @Operation(summary = "List positions (optional filter: name)")
+  public List<PositionResponse> listPositions(@RequestParam(required = false) String name) {
+    return service.listPositions(name).stream().map(this::toPositionResponse).toList();
   }
 
   @PostMapping("/positions")
@@ -66,12 +86,28 @@ public class ParishOperationsController {
     return ResponseEntity.status(HttpStatus.CREATED).body(toPositionResponse(position));
   }
 
+  @PatchMapping("/positions/{id}")
+  @Operation(summary = "Partially update position")
+  public PositionResponse patchPosition(@PathVariable Long id, @RequestBody PatchPositionRequest req) {
+    return toPositionResponse(service.patchPosition(id,
+        new ParishOperationsService.PatchPositionCommand(req.name(), req.description())));
+  }
+
+  @DeleteMapping("/positions/{id}")
+  @Operation(summary = "Delete position")
+  public ResponseEntity<Void> deletePosition(@PathVariable Long id) {
+    service.deletePosition(id);
+    return ResponseEntity.noContent().build();
+  }
+
   // ── DUTIES — UC: Przydzielanie obowiązku / Wykonanie obowiązku ───────────────
 
   @GetMapping("/duties")
-  @Operation(summary = "List all duties")
-  public List<DutyResponse> listDuties() {
-    return service.listDuties().stream().map(this::toDutyResponse).toList();
+  @Operation(summary = "List duties (optional filters: positionId, status)")
+  public List<DutyResponse> listDuties(
+      @RequestParam(required = false) Long positionId,
+      @RequestParam(required = false) String status) {
+    return service.listDuties(positionId, status).stream().map(this::toDutyResponse).toList();
   }
 
   @PostMapping("/duties")
@@ -80,6 +116,20 @@ public class ParishOperationsController {
     Obowiazek duty = service.assignDuty(
         new AssignDutyCommand(req.name(), req.description(), req.positionId()));
     return ResponseEntity.status(HttpStatus.CREATED).body(toDutyResponse(duty));
+  }
+
+  @PatchMapping("/duties/{id}")
+  @Operation(summary = "Partially update duty")
+  public DutyResponse patchDuty(@PathVariable Long id, @RequestBody PatchDutyRequest req) {
+    return toDutyResponse(service.patchDuty(id,
+        new ParishOperationsService.PatchDutyCommand(req.name(), req.description(), req.status())));
+  }
+
+  @DeleteMapping("/duties/{id}")
+  @Operation(summary = "Delete duty")
+  public ResponseEntity<Void> deleteDuty(@PathVariable Long id) {
+    service.deleteDuty(id);
+    return ResponseEntity.noContent().build();
   }
 
   @PutMapping("/duties/{id}/complete")
@@ -107,11 +157,14 @@ public class ParishOperationsController {
   // ── Request / Response records ───────────────────────────────────────────────
 
   public record AddEmployeeRequest(String firstName, String lastName, Long parishId, Long positionId) {}
+  public record PatchEmployeeRequest(String firstName, String lastName, Long parishId, Long positionId) {}
   public record EmployeeResponse(Long id, String firstName, String lastName, Long parishId, Long positionId) {}
 
   public record AddPositionRequest(String name, String description) {}
+  public record PatchPositionRequest(String name, String description) {}
   public record PositionResponse(Long id, String name, String description) {}
 
   public record AddDutyRequest(String name, String description, Long positionId) {}
+  public record PatchDutyRequest(String name, String description, String status) {}
   public record DutyResponse(Long id, String name, String description, String status, Long positionId) {}
 }

@@ -56,9 +56,9 @@ Aplikacja startuje na **http://localhost:8080**.
 | JDBC URL | `jdbc:h2:file:./data/eparish` |
 | User / hasło | `sa` / *(puste)* |
 
-Przy starcie Hibernate tworzy schemat (`ddl-auto=update`), a `data.sql` ładuje dane startowe (diecezja, parafia, stanowiska, typy wydarzeń, harmonogram, wydarzenie id=1, grupy, sakramenty, ksiądz, rodzina, parafianin).
+Przy starcie Hibernate tworzy schemat (`ddl-auto=update`), a `data.sql` ładuje dane startowe (diecezja, miejscowość, parafia, personel, **2 wydarzenia**, intencje, ogłoszenia, ofiary, uczestnicy, organizatorzy, grupy, członkostwa, sakramenty 1–7, księża, rodziny, parafianie 1–3, kartoteka, dokumenty, udzielanie sakramentu).
 
-**Jeśli testy Bruno dają 404** — usuń folder `data/` i uruchom aplikację od nowa (świeża baza + pełny seed).
+**Jeśli testy Bruno dają 404 lub brak danych seed** — usuń folder `data/` i uruchom aplikację od nowa (świeża baza + pełny seed).
 
 ---
 
@@ -114,40 +114,100 @@ Repository (JPA)  ← persystencja
 Strona startowa z listą wszystkich use-cases: **GET /**  
 Prefix wszystkich zasobów: **`/api`**
 
+Każdy zasób listowy obsługuje **GET** (z opcjonalnym filtrowaniem), **POST**, **PATCH** (częściowa aktualizacja) oraz **DELETE** (usuwanie). Pełna aktualizacja nadal dostępna przez **PUT** tam, gdzie była wcześniej.
+
+### Filtrowanie list (query params)
+
+Wszystkie parametry są **opcjonalne** i można je **łączyć** (logika AND). Bez parametrów — zwracana jest pełna lista.
+
+Przykład — ogłoszenia tylko dla wydarzenia id=1:
+
+```
+GET /api/announcements?eventId=1
+```
+
+| Endpoint | Parametry filtrowania |
+|----------|----------------------|
+| `/events` | `parishId`, `eventTypeId`, `scheduleId`, `name` |
+| `/intentions` | `eventId`, `status`, `date`, `donor` |
+| `/announcements` | `eventId` |
+| `/offerings` | `eventId`, `type`, `date` |
+| `/participants` | `eventId`, `role` |
+| `/organizers` | `eventId`, `role` |
+| `/event-types` | `name` |
+| `/schedules` | `date` |
+| `/dioceses` | `name`, `see`, `bishop` |
+| `/localities` | `dioceseId`, `province`, `postalCode`, `name` |
+| `/parishes` | `localityId`, `name` |
+| `/parishioners` | `parishId`, `familyId`, `pesel`, `firstName`, `lastName` |
+| `/records` | `parishionerId` |
+| `/documents` | `recordId`, `type` |
+| `/families` | `familyName` |
+| `/family-addresses` | `familyId`, `city`, `postalCode` |
+| `/groups` | `name`, `supervisor` |
+| `/memberships` | `groupId`, `parishionerId` |
+| `/employees` | `parishId`, `positionId` |
+| `/positions` | `name` |
+| `/duties` | `positionId`, `status` |
+| `/priests` | `parishId`, `role` |
+| `/sacraments` | `name` |
+| `/sacrament-administrations` | `parishionerId`, `priestId`, `sacramentId`, `administrationDate` |
+
+### PATCH i DELETE
+
+**PATCH** — częściowa aktualizacja: w body wysyłasz tylko pola do zmiany; pola `null`/pominięte pozostają bez zmian.
+
+```http
+PATCH /api/announcements/3
+{"content": "Nowa treść ogłoszenia"}
+```
+
+**DELETE** — usuwa rekord, odpowiedź **204 No Content**.
+
+```http
+DELETE /api/announcements/3
+```
+
+PATCH/DELETE dostępne m.in. dla: `events`, `intentions`, `announcements`, `offerings`, `participants`, `organizers`, `event-types`, `schedules`, `dioceses`, `localities`, `parishes`, `parishioners`, `records`, `documents`, `families`, `family-addresses`, `groups`, `memberships`, `employees`, `positions`, `duties`, `priests`, `sacraments`, `sacrament-administrations`.
+
+Endpointy specjalne (bez zmian): `PUT /api/events/{eId}/intentions/{iId}/realize`, `PUT /api/duties/{id}/complete`, `PUT /api/memberships/{id}/terminate`, `PUT /api/families/{id}/name`.
+
 ### Przypadki użycia → endpointy
 
 | Use Case | Metoda | Ścieżka |
 |---|---|---|
-| Zarządzanie wydarzeniami | POST / PUT / DELETE | `/api/events` |
-| Przypisanie intencji | POST | `/api/events/{id}/intentions` |
+| Zarządzanie wydarzeniami | POST / PUT / PATCH / DELETE | `/api/events` |
+| Przypisanie intencji | POST / PATCH / DELETE | `/api/intentions`, `/api/events/{id}/intentions` |
 | Prowadzenie harmonogramu (realizacja intencji) | PUT | `/api/events/{eId}/intentions/{iId}/realize` |
-| Zarządzanie ogłoszeniami | POST | `/api/events/{id}/announcements` |
-| Ewidencja ofiar | POST | `/api/events/{id}/offerings` |
-| Przypisanie uczestników | POST | `/api/events/{id}/participants` |
-| Przypisanie organizatorów | POST | `/api/events/{id}/organizers` |
-| Zarządzanie parafią | POST / PUT | `/api/parishes` |
-| Dodaj diecezję / biskupa / siedzibę | POST / PUT | `/api/dioceses` |
-| Dodaj miejscowość | POST | `/api/localities` |
-| Zarządzanie parafianami | POST / PUT / DELETE | `/api/parishioners` |
-| Prowadzenie kartotek | POST | `/api/parishioners/{id}/record` |
-| Rejestracja zdarzeń religijnych | PUT | `/api/records/{id}` |
-| Zarządzanie dokumentacją | POST | `/api/parishioners/{id}/record/documents` |
-| Zarządzanie wspólnotą — dodaj rodzinę | POST | `/api/families` |
+| Zarządzanie ogłoszeniami | POST / PATCH / DELETE | `/api/announcements`, `/api/events/{id}/announcements` |
+| Ewidencja ofiar | POST / PATCH / DELETE | `/api/offerings`, `/api/events/{id}/offerings` |
+| Przypisanie uczestników | POST / PATCH / DELETE | `/api/participants`, `/api/events/{id}/participants` |
+| Przypisanie organizatorów | POST / PATCH / DELETE | `/api/organizers`, `/api/events/{id}/organizers` |
+| Zarządzanie parafią | POST / PUT / PATCH / DELETE | `/api/parishes` |
+| Dodaj diecezję / biskupa / siedzibę | POST / PUT / PATCH / DELETE | `/api/dioceses` |
+| Dodaj miejscowość | POST / PUT / PATCH / DELETE | `/api/localities` |
+| Zarządzanie parafianami | POST / PUT / PATCH / DELETE | `/api/parishioners` |
+| Prowadzenie kartotek | POST / PATCH / DELETE | `/api/records`, `/api/parishioners/{id}/record` |
+| Rejestracja zdarzeń religijnych | PUT / PATCH | `/api/records/{id}` |
+| Zarządzanie dokumentacją | POST / PATCH / DELETE | `/api/documents`, `/api/parishioners/{id}/record/documents` |
+| Zarządzanie wspólnotą — dodaj rodzinę | POST / PATCH / DELETE | `/api/families` |
 | Zmiana nazwiska rodziny | PUT | `/api/families/{id}/name` |
 | Przypisanie do rodziny | PUT | `/api/parishioners/{pid}/family/{fid}` |
-| Dodanie adresu rodziny | POST | `/api/family-addresses` |
+| Dodanie adresu rodziny | POST / PATCH / DELETE | `/api/family-addresses` |
 | Zmiana adresu rodziny | PUT | `/api/family-addresses/{id}` |
-| Dodaj grupę | POST | `/api/groups` |
+| Dodaj grupę | POST / PATCH / DELETE | `/api/groups` |
 | Zmień grupę | PUT | `/api/groups/{id}` |
-| Dodaj członkostwo (z datami) | POST | `/api/memberships` |
+| Dodaj członkostwo (z datami) | POST / PATCH / DELETE | `/api/memberships` |
 | Zakończ członkostwo | PUT | `/api/memberships/{id}/terminate` |
-| Zarządzanie personelem | POST | `/api/employees` |
-| Przydzielanie stanowiska | POST | `/api/positions` |
-| Przydzielanie obowiązku | POST | `/api/duties` |
+| Zarządzanie personelem | POST / PATCH / DELETE | `/api/employees` |
+| Przydzielanie stanowiska | POST / PATCH / DELETE | `/api/positions` |
+| Przydzielanie obowiązku | POST / PATCH / DELETE | `/api/duties` |
 | Wykonanie obowiązku | PUT | `/api/duties/{id}/complete` |
-| Rejestrowanie sakramentów | POST | `/api/sacrament-administrations` |
+| Rejestrowanie sakramentów | POST / PATCH / DELETE | `/api/sacrament-administrations` |
 
 ### Odczyt (GET)
+
+Listy z opcjonalnym filtrowaniem (patrz sekcja **Filtrowanie list** powyżej):
 
 ```
 /api/parishes            /api/parishioners         /api/families
@@ -161,7 +221,7 @@ Prefix wszystkich zasobów: **`/api`**
 /api/documents
 ```
 
-Szczegół po ID: np. `/api/events/1`, `/api/parishioners/1`.
+Szczegół po ID: np. `/api/events/1`, `/api/parishioners/1`, `/api/offerings/1`, `/api/sacrament-administrations/1`.
 
 ### Przykłady JSON
 
@@ -215,6 +275,15 @@ Szczegół po ID: np. `/api/events/1`, `/api/parishioners/1`.
 **Wykonanie obowiązku** — `PUT /api/duties/1/complete`  
 *(brak body — status zmienia się na `COMPLETED`)*
 
+**Filtrowanie ogłoszeń wydarzenia** — `GET /api/announcements?eventId=1`
+
+**Częściowa aktualizacja ogłoszenia** — `PATCH /api/announcements/1`
+```json
+{"content": "Zaktualizowana treść ogłoszenia"}
+```
+
+**Usunięcie intencji** — `DELETE /api/intentions/1` → odpowiedź `204 No Content`
+
 ---
 
 ## Testy
@@ -253,6 +322,7 @@ src/main/java/edu/prz/eparish/
 │   ├── SacramentalMinistryController.java
 │   └── support/
 │       ├── EntityIds.java
+│       ├── ListFilterSupport.java      ← filtrowanie list po query params
 │       └── OpenApiConfig.java
 ├── koordynacjawydarzen/
 │   ├── application/

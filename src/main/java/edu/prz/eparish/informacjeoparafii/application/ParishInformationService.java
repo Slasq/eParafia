@@ -15,6 +15,7 @@ import edu.prz.eparish.informacjeoparafii.domain.miejscowosc.Miejscowosc;
 import edu.prz.eparish.informacjeoparafii.domain.miejscowosc.MiejscowoscRepozytorium;
 import edu.prz.eparish.informacjeoparafii.domain.parafia.Parafia;
 import edu.prz.eparish.informacjeoparafii.domain.parafia.ParafiaRepozytorium;
+import edu.prz.eparish.api.support.ListFilterSupport;
 import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -55,6 +56,22 @@ public class ParishInformationService {
 
   public record AddDocumentCommand(String type, LocalDate issueDate, String description, Long recordId) {}
 
+  public record PatchDioceseCommand(String name, String see, String bishop) {}
+
+  public record PatchLocalityCommand(String name, String postalCode, String province, Long dioceseId) {}
+
+  public record PatchParishCommand(
+      String name, String address, String phone, String email,
+      LocalDate erectionDate, Long localityId) {}
+
+  public record PatchParishionerCommand(
+      String firstName, String lastName, String pesel, LocalDate birthDate,
+      String phone, String email, Long parishId, Long familyId) {}
+
+  public record PatchRecordCommand(String description) {}
+
+  public record PatchDocumentCommand(String type, LocalDate issueDate, String description) {}
+
   // ── UC: Dodaj diecezję (z opcjonalnym biskupem, siedzibą, zmianą nazwy) ─────
 
   public Diecezja addDiocese(AddDioceseCommand cmd) {
@@ -70,8 +87,32 @@ public class ParishInformationService {
     return dioceseRepo.save(diocese);
   }
 
-  public List<Diecezja> listDioceses() {
-    return dioceseRepo.findAll();
+  public Diecezja patchDiocese(Long id, PatchDioceseCommand cmd) {
+    Diecezja diocese = requireDiocese(id);
+    if (cmd.name() != null) {
+      diocese.setNazwa(cmd.name());
+    }
+    if (cmd.see() != null) {
+      diocese.setSiedziba(cmd.see());
+    }
+    if (cmd.bishop() != null) {
+      diocese.setBiskup(cmd.bishop());
+    }
+    return dioceseRepo.save(diocese);
+  }
+
+  public void deleteDiocese(Long id) {
+    if (!dioceseRepo.existsById(id)) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Diocese not found");
+    }
+    dioceseRepo.deleteById(id);
+  }
+
+  public List<Diecezja> listDioceses(String name, String see, String bishop) {
+    return ListFilterSupport.filter(dioceseRepo.findAll(),
+        ListFilterSupport.containsIgnoreCase(name, Diecezja::getNazwa),
+        ListFilterSupport.containsIgnoreCase(see, Diecezja::getSiedziba),
+        ListFilterSupport.containsIgnoreCase(bishop, Diecezja::getBiskup));
   }
 
   // ── UC: Dodaj miejscowość ────────────────────────────────────────────────────
@@ -82,8 +123,47 @@ public class ParishInformationService {
     return localityRepo.save(locality);
   }
 
-  public List<Miejscowosc> listLocalities() {
-    return localityRepo.findAll();
+  public Miejscowosc updateLocality(Long id, AddLocalityCommand cmd) {
+    Miejscowosc locality = localityRepo.findById(id)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Locality not found"));
+    locality.setNazwa(cmd.name());
+    locality.setKodPocztowy(cmd.postalCode());
+    locality.setWojewodztwo(cmd.province());
+    locality.setDiecezja(requireDiocese(cmd.dioceseId()));
+    return localityRepo.save(locality);
+  }
+
+  public Miejscowosc patchLocality(Long id, PatchLocalityCommand cmd) {
+    Miejscowosc locality = localityRepo.findById(id)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Locality not found"));
+    if (cmd.name() != null) {
+      locality.setNazwa(cmd.name());
+    }
+    if (cmd.postalCode() != null) {
+      locality.setKodPocztowy(cmd.postalCode());
+    }
+    if (cmd.province() != null) {
+      locality.setWojewodztwo(cmd.province());
+    }
+    if (cmd.dioceseId() != null) {
+      locality.setDiecezja(requireDiocese(cmd.dioceseId()));
+    }
+    return localityRepo.save(locality);
+  }
+
+  public void deleteLocality(Long id) {
+    if (!localityRepo.existsById(id)) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Locality not found");
+    }
+    localityRepo.deleteById(id);
+  }
+
+  public List<Miejscowosc> listLocalities(Long dioceseId, String province, String postalCode, String name) {
+    return ListFilterSupport.filter(localityRepo.findAll(),
+        ListFilterSupport.eqLong(dioceseId, m -> m.getDiecezja() != null ? m.getDiecezja().getId() : null),
+        ListFilterSupport.eq(province, Miejscowosc::getWojewodztwo),
+        ListFilterSupport.eq(postalCode, Miejscowosc::getKodPocztowy),
+        ListFilterSupport.containsIgnoreCase(name, Miejscowosc::getNazwa));
   }
 
   // ── UC: Zarządzanie parafią ──────────────────────────────────────────────────
@@ -114,8 +194,42 @@ public class ParishInformationService {
     return parishRepo.save(parish);
   }
 
-  public List<Parafia> listParishes() {
-    return parishRepo.findAll();
+  public Parafia patchParish(Long id, PatchParishCommand cmd) {
+    Parafia parish = requireParish(id);
+    if (cmd.name() != null) {
+      parish.setNazwa(cmd.name());
+    }
+    if (cmd.address() != null) {
+      parish.setAdres(cmd.address());
+    }
+    if (cmd.phone() != null) {
+      parish.setTelefon(cmd.phone());
+    }
+    if (cmd.email() != null) {
+      parish.setEmail(cmd.email());
+    }
+    if (cmd.erectionDate() != null) {
+      parish.setDataErygowania(cmd.erectionDate());
+    }
+    if (cmd.localityId() != null) {
+      Miejscowosc locality = localityRepo.findById(cmd.localityId())
+          .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Locality not found"));
+      parish.setMiejscowosc(locality);
+    }
+    return parishRepo.save(parish);
+  }
+
+  public void deleteParish(Long id) {
+    if (!parishRepo.existsById(id)) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Parish not found");
+    }
+    parishRepo.deleteById(id);
+  }
+
+  public List<Parafia> listParishes(Long localityId, String name) {
+    return ListFilterSupport.filter(parishRepo.findAll(),
+        ListFilterSupport.eqLong(localityId, p -> p.getMiejscowosc() != null ? p.getMiejscowosc().getId() : null),
+        ListFilterSupport.containsIgnoreCase(name, Parafia::getNazwa));
   }
 
   public Parafia getParish(Long id) {
@@ -161,8 +275,45 @@ public class ParishInformationService {
     parishionerRepo.deleteById(id);
   }
 
-  public List<Parafianin> listParishioners() {
-    return parishionerRepo.findAll();
+  public Parafianin patchParishioner(Long id, PatchParishionerCommand cmd) {
+    Parafianin parishioner = requireParishioner(id);
+    if (cmd.firstName() != null) {
+      parishioner.setImie(cmd.firstName());
+    }
+    if (cmd.lastName() != null) {
+      parishioner.setNazwisko(cmd.lastName());
+    }
+    if (cmd.pesel() != null) {
+      parishioner.setPesel(cmd.pesel());
+    }
+    if (cmd.birthDate() != null) {
+      parishioner.setDataUrodzenia(cmd.birthDate());
+    }
+    if (cmd.phone() != null) {
+      parishioner.setTelefon(cmd.phone());
+    }
+    if (cmd.email() != null) {
+      parishioner.setEmail(cmd.email());
+    }
+    if (cmd.parishId() != null) {
+      parishioner.setParafia(requireParish(cmd.parishId()));
+    }
+    if (cmd.familyId() != null) {
+      Rodzina family = familyRepo.findById(cmd.familyId())
+          .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Family not found"));
+      parishioner.setRodzina(family);
+    }
+    return parishionerRepo.save(parishioner);
+  }
+
+  public List<Parafianin> listParishioners(
+      Long parishId, Long familyId, String pesel, String firstName, String lastName) {
+    return ListFilterSupport.filter(parishionerRepo.findAll(),
+        ListFilterSupport.eqLong(parishId, p -> p.getParafia() != null ? p.getParafia().getId() : null),
+        ListFilterSupport.eqLong(familyId, p -> p.getRodzina() != null ? p.getRodzina().getId() : null),
+        ListFilterSupport.eq(pesel, Parafianin::getPesel),
+        ListFilterSupport.containsIgnoreCase(firstName, Parafianin::getImie),
+        ListFilterSupport.containsIgnoreCase(lastName, Parafianin::getNazwisko));
   }
 
   public Parafianin getParishioner(Long id) {
@@ -199,7 +350,19 @@ public class ParishInformationService {
     recordRepo.deleteById(id);
   }
 
-  public List<Kartoteka> listRecords() {
+  public Kartoteka patchRecord(Long id, PatchRecordCommand cmd) {
+    Kartoteka record = recordRepo.findById(id)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Record not found"));
+    if (cmd.description() != null) {
+      record.setOpis(cmd.description());
+    }
+    return recordRepo.save(record);
+  }
+
+  public List<Kartoteka> listRecords(Long parishionerId) {
+    if (parishionerId != null) {
+      return recordRepo.findByParafianin_Id(parishionerId).map(List::of).orElse(List.of());
+    }
     return recordRepo.findAll();
   }
 
@@ -236,8 +399,27 @@ public class ParishInformationService {
     documentRepo.deleteById(id);
   }
 
-  public List<Dokument> listDocuments() {
-    return documentRepo.findAll();
+  public Dokument patchDocument(Long id, PatchDocumentCommand cmd) {
+    Dokument document = documentRepo.findById(id)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Document not found"));
+    if (cmd.type() != null) {
+      document.setTyp(cmd.type());
+    }
+    if (cmd.issueDate() != null) {
+      document.setDataWystawienia(cmd.issueDate());
+    }
+    if (cmd.description() != null) {
+      document.setOpis(cmd.description());
+    }
+    return documentRepo.save(document);
+  }
+
+  public List<Dokument> listDocuments(Long recordId, String type) {
+    List<Dokument> source = recordId != null
+        ? documentRepo.findByKartoteka_Id(recordId)
+        : documentRepo.findAll();
+    return ListFilterSupport.filter(source,
+        ListFilterSupport.eq(type, Dokument::getTyp));
   }
 
   // ── Agregat ParafianinAgregat ────────────────────────────────────────────────

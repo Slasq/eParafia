@@ -18,12 +18,15 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -38,9 +41,9 @@ public class PastoralCareController {
   // ── FAMILIES — UC: Zarządzanie wspólnotą parafialną ─────────────────────────
 
   @GetMapping("/families")
-  @Operation(summary = "List all families")
-  public List<FamilyResponse> listFamilies() {
-    return pastoralCareService.listFamilies().stream().map(this::toFamilyResponse).toList();
+  @Operation(summary = "List families (optional filter: familyName)")
+  public List<FamilyResponse> listFamilies(@RequestParam(required = false) String familyName) {
+    return pastoralCareService.listFamilies(familyName).stream().map(this::toFamilyResponse).toList();
   }
 
   @GetMapping("/families/{id}")
@@ -68,6 +71,20 @@ public class PastoralCareController {
     return toFamilyResponse(pastoralCareService.updateMemberCount(id, req.memberCount()));
   }
 
+  @PatchMapping("/families/{id}")
+  @Operation(summary = "Partially update family")
+  public FamilyResponse patchFamily(@PathVariable Long id, @RequestBody PatchFamilyRequest req) {
+    return toFamilyResponse(pastoralCareService.patchFamily(id,
+        new PastoralCareService.PatchFamilyCommand(req.familyName(), req.memberCount())));
+  }
+
+  @DeleteMapping("/families/{id}")
+  @Operation(summary = "Delete family")
+  public ResponseEntity<Void> deleteFamily(@PathVariable Long id) {
+    pastoralCareService.deleteFamily(id);
+    return ResponseEntity.noContent().build();
+  }
+
   // ── ASSIGN PARISHIONER TO FAMILY — UC: Przypisanie do rodziny ───────────────
 
   @PutMapping("/parishioners/{parishionerId}/family/{familyId}")
@@ -81,9 +98,13 @@ public class PastoralCareController {
   // ── FAMILY ADDRESSES — UC: Dodanie / zmiana adresu ──────────────────────────
 
   @GetMapping("/family-addresses")
-  @Operation(summary = "List all family addresses")
-  public List<FamilyAddressResponse> listFamilyAddresses() {
-    return pastoralCareService.listFamilyAddresses().stream().map(this::toAddressResponse).toList();
+  @Operation(summary = "List family addresses (optional filters: familyId, city, postalCode)")
+  public List<FamilyAddressResponse> listFamilyAddresses(
+      @RequestParam(required = false) Long familyId,
+      @RequestParam(required = false) String city,
+      @RequestParam(required = false) String postalCode) {
+    return pastoralCareService.listFamilyAddresses(familyId, city, postalCode).stream()
+        .map(this::toAddressResponse).toList();
   }
 
   @PostMapping("/family-addresses")
@@ -105,12 +126,30 @@ public class PastoralCareController {
     return toAddressResponse(address);
   }
 
+  @PatchMapping("/family-addresses/{id}")
+  @Operation(summary = "Partially update family address")
+  public FamilyAddressResponse patchFamilyAddress(
+      @PathVariable Long id, @RequestBody PatchFamilyAddressRequest req) {
+    return toAddressResponse(pastoralCareService.patchFamilyAddress(id,
+        new PastoralCareService.PatchAddressCommand(
+            req.street(), req.houseNumber(), req.apartmentNumber(), req.postalCode(), req.city())));
+  }
+
+  @DeleteMapping("/family-addresses/{id}")
+  @Operation(summary = "Delete family address")
+  public ResponseEntity<Void> deleteFamilyAddress(@PathVariable Long id) {
+    pastoralCareService.deleteFamilyAddress(id);
+    return ResponseEntity.noContent().build();
+  }
+
   // ── GROUPS — UC: Dodaj / zmień grupę parafialną ──────────────────────────────
 
   @GetMapping("/groups")
-  @Operation(summary = "List all parish groups")
-  public List<GroupResponse> listGroups() {
-    return groupService.listGroups().stream().map(this::toGroupResponse).toList();
+  @Operation(summary = "List parish groups (optional filters: name, supervisor)")
+  public List<GroupResponse> listGroups(
+      @RequestParam(required = false) String name,
+      @RequestParam(required = false) String supervisor) {
+    return groupService.listGroups(name, supervisor).stream().map(this::toGroupResponse).toList();
   }
 
   @GetMapping("/groups/{id}")
@@ -134,6 +173,20 @@ public class PastoralCareController {
         new CreateGroupCommand(req.name(), req.description(), req.supervisor())));
   }
 
+  @PatchMapping("/groups/{id}")
+  @Operation(summary = "Partially update parish group")
+  public GroupResponse patchGroup(@PathVariable Long id, @RequestBody PatchGroupRequest req) {
+    return toGroupResponse(groupService.patchGroup(id,
+        new ParishGroupService.PatchGroupCommand(req.name(), req.description(), req.supervisor())));
+  }
+
+  @DeleteMapping("/groups/{id}")
+  @Operation(summary = "Delete parish group")
+  public ResponseEntity<Void> deleteGroup(@PathVariable Long id) {
+    groupService.deleteGroup(id);
+    return ResponseEntity.noContent().build();
+  }
+
   // ── GROUP AGGREGATE — GrupaParafialnaAgregat ─────────────────────────────────
 
   @GetMapping("/groups/{id}/aggregate")
@@ -148,9 +201,12 @@ public class PastoralCareController {
   // ── MEMBERSHIPS — UC: Dodaj członkostwo ─────────────────────────────────────
 
   @GetMapping("/memberships")
-  @Operation(summary = "List all memberships")
-  public List<MembershipResponse> listMemberships() {
-    return groupService.listMemberships().stream().map(this::toMembershipResponse).toList();
+  @Operation(summary = "List memberships (optional filters: groupId, parishionerId)")
+  public List<MembershipResponse> listMemberships(
+      @RequestParam(required = false) Long groupId,
+      @RequestParam(required = false) Long parishionerId) {
+    return groupService.listMemberships(groupId, parishionerId).stream()
+        .map(this::toMembershipResponse).toList();
   }
 
   @PostMapping("/memberships")
@@ -166,6 +222,21 @@ public class PastoralCareController {
   public MembershipResponse terminateMembership(
       @PathVariable Long id, @RequestBody TerminateMembershipRequest req) {
     return toMembershipResponse(groupService.terminateMembership(id, req.endDate()));
+  }
+
+  @PatchMapping("/memberships/{id}")
+  @Operation(summary = "Partially update membership dates")
+  public MembershipResponse patchMembership(
+      @PathVariable Long id, @RequestBody PatchMembershipRequest req) {
+    return toMembershipResponse(groupService.patchMembership(id,
+        new ParishGroupService.PatchMembershipCommand(req.startDate(), req.endDate())));
+  }
+
+  @DeleteMapping("/memberships/{id}")
+  @Operation(summary = "Delete membership")
+  public ResponseEntity<Void> deleteMembership(@PathVariable Long id) {
+    groupService.deleteMembership(id);
+    return ResponseEntity.noContent().build();
   }
 
   // ── Mapping helpers ──────────────────────────────────────────────────────────
@@ -200,6 +271,7 @@ public class PastoralCareController {
   // ── Request / Response records ───────────────────────────────────────────────
 
   public record AddFamilyRequest(String familyName, Integer memberCount) {}
+  public record PatchFamilyRequest(String familyName, Integer memberCount) {}
   public record UpdateFamilyNameRequest(String familyName) {}
   public record UpdateMemberCountRequest(Integer memberCount) {}
   public record FamilyResponse(Long id, String familyName, Integer memberCount) {}
@@ -207,10 +279,13 @@ public class PastoralCareController {
 
   public record AddFamilyAddressRequest(String street, String houseNumber, String apartmentNumber,
       String postalCode, String city, Long familyId) {}
+  public record PatchFamilyAddressRequest(String street, String houseNumber, String apartmentNumber,
+      String postalCode, String city) {}
   public record FamilyAddressResponse(Long id, String street, String houseNumber,
       String apartmentNumber, String postalCode, String city, Long familyId) {}
 
   public record CreateGroupRequest(String name, String description, String supervisor) {}
+  public record PatchGroupRequest(String name, String description, String supervisor) {}
   public record GroupResponse(Long id, String name, String description, String supervisor) {}
 
   public record GroupAggregateResponse(GroupResponse group, int totalMembers,
@@ -218,6 +293,7 @@ public class PastoralCareController {
 
   public record AddMembershipRequest(Long groupId, Long parishionerId,
       LocalDate startDate, LocalDate endDate) {}
+  public record PatchMembershipRequest(LocalDate startDate, LocalDate endDate) {}
   public record TerminateMembershipRequest(LocalDate endDate) {}
   public record MembershipResponse(Long id, LocalDate startDate, LocalDate endDate,
       Long groupId, Long parishionerId) {}
