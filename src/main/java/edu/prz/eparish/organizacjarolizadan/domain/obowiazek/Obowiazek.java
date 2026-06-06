@@ -18,6 +18,7 @@ public class Obowiazek {
 
   String nazwa;
   String opis;
+  String status;
 
   @ManyToOne
   @JoinColumn(name = "stanowisko_id")

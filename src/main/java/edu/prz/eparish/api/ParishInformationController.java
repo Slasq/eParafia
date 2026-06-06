@@ -1,180 +1,238 @@
 package edu.prz.eparish.api;
 
-import edu.prz.eparish.api.support.EntityIds;
 import edu.prz.eparish.duszpasterstwowiernych.domain.parafianin.Parafianin;
-import edu.prz.eparish.duszpasterstwowiernych.domain.parafianin.ParafianinRepozytorium;
-import edu.prz.eparish.duszpasterstwowiernych.domain.rodzina.Rodzina;
-import edu.prz.eparish.duszpasterstwowiernych.domain.rodzina.RodzinaRepozytorium;
+import edu.prz.eparish.duszpasterstwowiernych.domain.parafianin.ParafianinAgregat;
+import edu.prz.eparish.informacjeoparafii.application.ParishInformationService;
+import edu.prz.eparish.informacjeoparafii.application.ParishInformationService.AddDioceseCommand;
+import edu.prz.eparish.informacjeoparafii.application.ParishInformationService.AddDocumentCommand;
+import edu.prz.eparish.informacjeoparafii.application.ParishInformationService.AddLocalityCommand;
+import edu.prz.eparish.informacjeoparafii.application.ParishInformationService.AddParishCommand;
+import edu.prz.eparish.informacjeoparafii.application.ParishInformationService.CreateRecordCommand;
+import edu.prz.eparish.informacjeoparafii.application.ParishInformationService.RegisterParishionerCommand;
 import edu.prz.eparish.informacjeoparafii.domain.diecezja.Diecezja;
-import edu.prz.eparish.informacjeoparafii.domain.diecezja.DiecezjaRepozytorium;
 import edu.prz.eparish.informacjeoparafii.domain.dokument.Dokument;
-import edu.prz.eparish.informacjeoparafii.domain.dokument.DokumentRepozytorium;
 import edu.prz.eparish.informacjeoparafii.domain.kartoteka.Kartoteka;
-import edu.prz.eparish.informacjeoparafii.domain.kartoteka.KartotekaRepozytorium;
 import edu.prz.eparish.informacjeoparafii.domain.miejscowosc.Miejscowosc;
-import edu.prz.eparish.informacjeoparafii.domain.miejscowosc.MiejscowoscRepozytorium;
 import edu.prz.eparish.informacjeoparafii.domain.parafia.Parafia;
-import edu.prz.eparish.informacjeoparafii.domain.parafia.ParafiaRepozytorium;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
+@Tag(name = "Parish Information", description = "Parish, diocese, parishioners, records — ParafianinAgregat")
 public class ParishInformationController {
 
-  private final DiecezjaRepozytorium diecezjaRepozytorium;
-  private final MiejscowoscRepozytorium miejscowoscRepozytorium;
-  private final ParafiaRepozytorium parafiaRepozytorium;
-  private final ParafianinRepozytorium parafianinRepozytorium;
-  private final RodzinaRepozytorium rodzinaRepozytorium;
-  private final KartotekaRepozytorium kartotekaRepozytorium;
-  private final DokumentRepozytorium dokumentRepozytorium;
+  private final ParishInformationService service;
+
+  // ── DIOCESES — UC: Dodaj diecezję ───────────────────────────────────────────
 
   @GetMapping("/dioceses")
+  @Operation(summary = "List all dioceses")
   public List<DioceseResponse> listDioceses() {
-    return diecezjaRepozytorium.findAll().stream()
-        .map(d -> new DioceseResponse(d.getId(), d.getNazwa(), d.getSiedziba(), d.getBiskup()))
-        .toList();
+    return service.listDioceses().stream().map(this::toDioceseResponse).toList();
   }
 
   @PostMapping("/dioceses")
-  public ResponseEntity<DioceseResponse> addDiocese(@RequestBody AddDioceseRequest request) {
-    Diecezja diecezja = new Diecezja();
-    diecezja.setId(EntityIds.nextId(diecezjaRepozytorium, Diecezja::getId));
-    diecezja.setNazwa(request.name());
-    diecezja.setSiedziba(request.see());
-    diecezja.setBiskup(request.bishop());
-
-    Diecezja saved = diecezjaRepozytorium.save(diecezja);
-    return ResponseEntity.status(HttpStatus.CREATED)
-        .body(new DioceseResponse(saved.getId(), saved.getNazwa(), saved.getSiedziba(), saved.getBiskup()));
+  @Operation(summary = "UC: Dodaj diecezję — create diocese")
+  public ResponseEntity<DioceseResponse> addDiocese(@RequestBody AddDioceseRequest req) {
+    Diecezja d = service.addDiocese(new AddDioceseCommand(req.name(), req.see(), req.bishop()));
+    return ResponseEntity.status(HttpStatus.CREATED).body(toDioceseResponse(d));
   }
 
+  @PutMapping("/dioceses/{id}")
+  @Operation(summary = "UC: Dodaj biskupa / siedzibę / zmień nazwę — update diocese")
+  public DioceseResponse updateDiocese(@PathVariable Long id, @RequestBody AddDioceseRequest req) {
+    return toDioceseResponse(service.updateDiocese(id, new AddDioceseCommand(req.name(), req.see(), req.bishop())));
+  }
+
+  // ── LOCALITIES — UC: Dodaj miejscowość ──────────────────────────────────────
+
   @GetMapping("/localities")
+  @Operation(summary = "List all localities")
   public List<LocalityResponse> listLocalities() {
-    return miejscowoscRepozytorium.findAll().stream().map(this::toLocalityResponse).toList();
+    return service.listLocalities().stream().map(this::toLocalityResponse).toList();
   }
 
   @PostMapping("/localities")
-  public ResponseEntity<LocalityResponse> addLocality(@RequestBody AddLocalityRequest request) {
-    Diecezja diecezja = diecezjaRepozytorium.findById(request.dioceseId())
-        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Diecezja nie istnieje"));
-
-    Miejscowosc miejscowosc = new Miejscowosc();
-    miejscowosc.setId(EntityIds.nextId(miejscowoscRepozytorium, Miejscowosc::getId));
-    miejscowosc.setNazwa(request.name());
-    miejscowosc.setKodPocztowy(request.postalCode());
-    miejscowosc.setWojewodztwo(request.province());
-    miejscowosc.setDiecezja(diecezja);
-
-    Miejscowosc saved = miejscowoscRepozytorium.save(miejscowosc);
-    return ResponseEntity.status(HttpStatus.CREATED).body(toLocalityResponse(saved));
+  @Operation(summary = "UC: Dodaj miejscowość — create locality")
+  public ResponseEntity<LocalityResponse> addLocality(@RequestBody AddLocalityRequest req) {
+    Miejscowosc m = service.addLocality(new AddLocalityCommand(
+        req.name(), req.postalCode(), req.province(), req.dioceseId()));
+    return ResponseEntity.status(HttpStatus.CREATED).body(toLocalityResponse(m));
   }
 
+  // ── PARISHES — UC: Zarządzanie parafią ──────────────────────────────────────
+
   @GetMapping("/parishes")
+  @Operation(summary = "List all parishes")
   public List<ParishResponse> listParishes() {
-    return parafiaRepozytorium.findAll().stream().map(this::toParishResponse).toList();
+    return service.listParishes().stream().map(this::toParishResponse).toList();
   }
 
   @GetMapping("/parishes/{id}")
+  @Operation(summary = "Get parish by ID")
   public ParishResponse getParish(@PathVariable Long id) {
-    return toParishResponse(findParish(id));
+    return toParishResponse(service.getParish(id));
   }
 
+  @PostMapping("/parishes")
+  @Operation(summary = "UC: Zarządzanie parafią — create parish")
+  public ResponseEntity<ParishResponse> addParish(@RequestBody AddParishRequest req) {
+    Parafia p = service.addParish(new AddParishCommand(
+        req.name(), req.address(), req.phone(), req.email(), req.erectionDate(), req.localityId()));
+    return ResponseEntity.status(HttpStatus.CREATED).body(toParishResponse(p));
+  }
+
+  @PutMapping("/parishes/{id}")
+  @Operation(summary = "Update parish")
+  public ParishResponse updateParish(@PathVariable Long id, @RequestBody AddParishRequest req) {
+    return toParishResponse(service.updateParish(id, new AddParishCommand(
+        req.name(), req.address(), req.phone(), req.email(), req.erectionDate(), req.localityId())));
+  }
+
+  // ── PARISHIONERS — UC: Zarządzanie parafianami ──────────────────────────────
+
   @GetMapping("/parishioners")
+  @Operation(summary = "List all parishioners")
   public List<ParishionerResponse> listParishioners() {
-    return parafianinRepozytorium.findAll().stream().map(this::toParishionerResponse).toList();
+    return service.listParishioners().stream().map(this::toParishionerResponse).toList();
   }
 
   @GetMapping("/parishioners/{id}")
+  @Operation(summary = "Get parishioner by ID")
   public ParishionerResponse getParishioner(@PathVariable Long id) {
-    return toParishionerResponse(findParishioner(id));
+    return toParishionerResponse(service.getParishioner(id));
   }
 
   @PostMapping("/parishioners")
-  public ResponseEntity<ParishionerResponse> addParishioner(@RequestBody AddParishionerRequest request) {
-    Parafia parafia = parafiaRepozytorium.findById(request.parishId())
-        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Parafia nie istnieje"));
-    Rodzina rodzina = null;
-    if (request.familyId() != null) {
-      rodzina = rodzinaRepozytorium.findById(request.familyId())
-          .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Rodzina nie istnieje"));
-    }
-
-    Parafianin parafianin = new Parafianin();
-    parafianin.setId(EntityIds.nextId(parafianinRepozytorium, Parafianin::getId));
-    parafianin.setImie(request.firstName());
-    parafianin.setNazwisko(request.lastName());
-    parafianin.setPesel(request.pesel());
-    parafianin.setDataUrodzenia(request.birthDate());
-    parafianin.setTelefon(request.phone());
-    parafianin.setEmail(request.email());
-    parafianin.setParafia(parafia);
-    parafianin.setRodzina(rodzina);
-
-    Parafianin saved = parafianinRepozytorium.save(parafianin);
-    return ResponseEntity.status(HttpStatus.CREATED).body(toParishionerResponse(saved));
+  @Operation(summary = "UC: Zarządzanie parafianami — register parishioner")
+  public ResponseEntity<ParishionerResponse> addParishioner(@RequestBody AddParishionerRequest req) {
+    Parafianin p = service.registerParishioner(new RegisterParishionerCommand(
+        req.firstName(), req.lastName(), req.pesel(), req.birthDate(),
+        req.phone(), req.email(), req.parishId(), req.familyId()));
+    return ResponseEntity.status(HttpStatus.CREATED).body(toParishionerResponse(p));
   }
 
+  @PutMapping("/parishioners/{id}")
+  @Operation(summary = "Update parishioner data")
+  public ParishionerResponse updateParishioner(
+      @PathVariable Long id, @RequestBody AddParishionerRequest req) {
+    return toParishionerResponse(service.updateParishioner(id, new RegisterParishionerCommand(
+        req.firstName(), req.lastName(), req.pesel(), req.birthDate(),
+        req.phone(), req.email(), req.parishId(), req.familyId())));
+  }
+
+  @DeleteMapping("/parishioners/{id}")
+  @Operation(summary = "Remove parishioner")
+  public ResponseEntity<Void> deleteParishioner(@PathVariable Long id) {
+    service.removeParishioner(id);
+    return ResponseEntity.noContent().build();
+  }
+
+  // ── PARISHIONER AGGREGATE — ParafianinAgregat ────────────────────────────────
+
+  @GetMapping("/parishioners/{id}/aggregate")
+  @Operation(summary = "UC: ParafianinAgregat — parishioner with record and documents",
+      description = "Returns parishioner with associated record and all documents. "
+          + "Covers UC: prowadzenie kartotek, zarządzanie dokumentacją, rejestracja zdarzeń.")
+  public ParishionerAggregateResponse getParishionerAggregate(@PathVariable Long id) {
+    ParafianinAgregat agg = service.getParishionerAggregate(id);
+    return toAggregateResponse(agg);
+  }
+
+  // ── RECORDS — UC: Prowadzenie kartotek parafian ──────────────────────────────
+
   @GetMapping("/records")
+  @Operation(summary = "List all records")
   public List<RecordResponse> listRecords() {
-    return kartotekaRepozytorium.findAll().stream().map(this::toRecordResponse).toList();
+    return service.listRecords().stream().map(this::toRecordResponse).toList();
   }
 
   @PostMapping("/records")
-  public ResponseEntity<RecordResponse> addRecord(@RequestBody AddRecordRequest request) {
-    Parafianin parafianin = findParishioner(request.parishionerId());
-
-    Kartoteka kartoteka = new Kartoteka();
-    kartoteka.setId(EntityIds.nextId(kartotekaRepozytorium, Kartoteka::getId));
-    kartoteka.setDataUtworzenia(request.createdAt());
-    kartoteka.setOpis(request.description());
-    kartoteka.setParafianin(parafianin);
-
-    Kartoteka saved = kartotekaRepozytorium.save(kartoteka);
-    return ResponseEntity.status(HttpStatus.CREATED).body(toRecordResponse(saved));
+  @Operation(summary = "UC: Prowadzenie kartotek — create record directly")
+  public ResponseEntity<RecordResponse> addRecord(@RequestBody AddRecordRequest req) {
+    Kartoteka k = service.createRecordDirect(
+        new CreateRecordCommand(req.createdAt(), req.description(), req.parishionerId()));
+    return ResponseEntity.status(HttpStatus.CREATED).body(toRecordResponse(k));
   }
 
+  @PostMapping("/parishioners/{id}/record")
+  @Operation(summary = "UC: Prowadzenie kartotek — create record for parishioner")
+  public ResponseEntity<RecordResponse> createRecordForParishioner(
+      @PathVariable Long id, @RequestBody AddRecordRequest req) {
+    Kartoteka k = service.createRecord(id, new CreateRecordCommand(req.createdAt(), req.description(), id));
+    return ResponseEntity.status(HttpStatus.CREATED).body(toRecordResponse(k));
+  }
+
+  @PutMapping("/records/{id}")
+  @Operation(summary = "UC: Rejestracja zdarzeń religijnych — update record description")
+  public RecordResponse updateRecord(@PathVariable Long id, @RequestBody UpdateRecordRequest req) {
+    return toRecordResponse(service.updateRecord(id, req.description()));
+  }
+
+  @DeleteMapping("/records/{id}")
+  @Operation(summary = "Delete record")
+  public ResponseEntity<Void> deleteRecord(@PathVariable Long id) {
+    service.deleteRecord(id);
+    return ResponseEntity.noContent().build();
+  }
+
+  // ── DOCUMENTS — UC: Zarządzanie dokumentacją ────────────────────────────────
+
   @GetMapping("/documents")
+  @Operation(summary = "List all documents")
   public List<DocumentResponse> listDocuments() {
-    return dokumentRepozytorium.findAll().stream().map(this::toDocumentResponse).toList();
+    return service.listDocuments().stream().map(this::toDocumentResponse).toList();
+  }
+
+  @PostMapping("/parishioners/{id}/record/documents")
+  @Operation(summary = "UC: Zarządzanie dokumentacją — add document to parishioner record")
+  public ResponseEntity<DocumentResponse> addDocumentToParishioner(
+      @PathVariable Long id, @RequestBody AddDocumentRequest req) {
+    Dokument d = service.addDocumentToParishioner(id,
+        new AddDocumentCommand(req.type(), req.issueDate(), req.description(), null));
+    return ResponseEntity.status(HttpStatus.CREATED).body(toDocumentResponse(d));
   }
 
   @PostMapping("/documents")
-  public ResponseEntity<DocumentResponse> addDocument(@RequestBody AddDocumentRequest request) {
-    Kartoteka kartoteka = kartotekaRepozytorium.findById(request.recordId())
-        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Kartoteka nie istnieje"));
-
-    Dokument dokument = new Dokument();
-    dokument.setId(EntityIds.nextId(dokumentRepozytorium, Dokument::getId));
-    dokument.setTyp(request.type());
-    dokument.setDataWystawienia(request.issueDate());
-    dokument.setOpis(request.description());
-    dokument.setKartoteka(kartoteka);
-
-    Dokument saved = dokumentRepozytorium.save(dokument);
-    return ResponseEntity.status(HttpStatus.CREATED).body(toDocumentResponse(saved));
+  @Operation(summary = "UC: Zarządzanie dokumentacją — add document directly to record")
+  public ResponseEntity<DocumentResponse> addDocument(@RequestBody AddDocumentRequest req) {
+    Dokument d = service.addDocumentToRecord(req.recordId(),
+        new AddDocumentCommand(req.type(), req.issueDate(), req.description(), req.recordId()));
+    return ResponseEntity.status(HttpStatus.CREATED).body(toDocumentResponse(d));
   }
 
-  private Parafia findParish(Long id) {
-    return parafiaRepozytorium.findById(id)
-        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Parafia nie istnieje"));
+  @PutMapping("/documents/{id}")
+  @Operation(summary = "Update document")
+  public DocumentResponse updateDocument(@PathVariable Long id, @RequestBody UpdateDocumentRequest req) {
+    return toDocumentResponse(service.updateDocument(id, req.type(), req.issueDate(), req.description()));
   }
 
-  private Parafianin findParishioner(Long id) {
-    return parafianinRepozytorium.findById(id)
-        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Parafianin nie istnieje"));
+  @DeleteMapping("/documents/{id}")
+  @Operation(summary = "Delete document")
+  public ResponseEntity<Void> deleteDocument(@PathVariable Long id) {
+    service.deleteDocument(id);
+    return ResponseEntity.noContent().build();
+  }
+
+  // ── Mapping helpers ──────────────────────────────────────────────────────────
+
+  private DioceseResponse toDioceseResponse(Diecezja d) {
+    return new DioceseResponse(d.getId(), d.getNazwa(), d.getSiedziba(), d.getBiskup());
   }
 
   private LocalityResponse toLocalityResponse(Miejscowosc m) {
@@ -184,23 +242,15 @@ public class ParishInformationController {
 
   private ParishResponse toParishResponse(Parafia p) {
     Long localityId = p.getMiejscowosc() != null ? p.getMiejscowosc().getId() : null;
-    return new ParishResponse(
-        p.getId(), p.getNazwa(), p.getAdres(), p.getTelefon(), p.getEmail(), p.getDataErygowania(), localityId);
+    return new ParishResponse(p.getId(), p.getNazwa(), p.getAdres(), p.getTelefon(),
+        p.getEmail(), p.getDataErygowania(), localityId);
   }
 
   private ParishionerResponse toParishionerResponse(Parafianin p) {
     Long parishId = p.getParafia() != null ? p.getParafia().getId() : null;
     Long familyId = p.getRodzina() != null ? p.getRodzina().getId() : null;
-    return new ParishionerResponse(
-        p.getId(),
-        p.getImie(),
-        p.getNazwisko(),
-        p.getPesel(),
-        p.getDataUrodzenia(),
-        p.getTelefon(),
-        p.getEmail(),
-        parishId,
-        familyId);
+    return new ParishionerResponse(p.getId(), p.getImie(), p.getNazwisko(), p.getPesel(),
+        p.getDataUrodzenia(), p.getTelefon(), p.getEmail(), parishId, familyId);
   }
 
   private RecordResponse toRecordResponse(Kartoteka k) {
@@ -213,49 +263,43 @@ public class ParishInformationController {
     return new DocumentResponse(d.getId(), d.getTyp(), d.getDataWystawienia(), d.getOpis(), recordId);
   }
 
-  public record AddDioceseRequest(String name, String see, String bishop) {}
+  private ParishionerAggregateResponse toAggregateResponse(ParafianinAgregat a) {
+    RecordResponse rec = a.getKartoteka() != null ? toRecordResponse(a.getKartoteka()) : null;
+    return new ParishionerAggregateResponse(
+        toParishionerResponse(a.getRoot()),
+        a.hasRecord(),
+        a.isProfileComplete(),
+        a.documentCount(),
+        rec,
+        a.getDokumenty().stream().map(this::toDocumentResponse).toList());
+  }
 
+  // ── Request / Response records ───────────────────────────────────────────────
+
+  public record AddDioceseRequest(String name, String see, String bishop) {}
   public record DioceseResponse(Long id, String name, String see, String bishop) {}
 
   public record AddLocalityRequest(String name, String postalCode, String province, Long dioceseId) {}
-
   public record LocalityResponse(Long id, String name, String postalCode, String province, Long dioceseId) {}
 
-  public record ParishResponse(
-      Long id,
-      String name,
-      String address,
-      String phone,
-      String email,
-      LocalDate erectionDate,
-      Long localityId) {}
+  public record AddParishRequest(String name, String address, String phone, String email,
+      LocalDate erectionDate, Long localityId) {}
+  public record ParishResponse(Long id, String name, String address, String phone, String email,
+      LocalDate erectionDate, Long localityId) {}
 
-  public record AddParishionerRequest(
-      String firstName,
-      String lastName,
-      String pesel,
-      LocalDate birthDate,
-      String phone,
-      String email,
-      Long parishId,
-      Long familyId) {}
+  public record AddParishionerRequest(String firstName, String lastName, String pesel,
+      LocalDate birthDate, String phone, String email, Long parishId, Long familyId) {}
+  public record ParishionerResponse(Long id, String firstName, String lastName, String pesel,
+      LocalDate birthDate, String phone, String email, Long parishId, Long familyId) {}
 
-  public record ParishionerResponse(
-      Long id,
-      String firstName,
-      String lastName,
-      String pesel,
-      LocalDate birthDate,
-      String phone,
-      String email,
-      Long parishId,
-      Long familyId) {}
+  public record ParishionerAggregateResponse(ParishionerResponse parishioner, boolean hasRecord,
+      boolean profileComplete, int documentCount, RecordResponse record, List<DocumentResponse> documents) {}
 
   public record AddRecordRequest(LocalDate createdAt, String description, Long parishionerId) {}
-
+  public record UpdateRecordRequest(String description) {}
   public record RecordResponse(Long id, LocalDate createdAt, String description, Long parishionerId) {}
 
   public record AddDocumentRequest(String type, LocalDate issueDate, String description, Long recordId) {}
-
+  public record UpdateDocumentRequest(String type, LocalDate issueDate, String description) {}
   public record DocumentResponse(Long id, String type, LocalDate issueDate, String description, Long recordId) {}
 }
