@@ -83,6 +83,13 @@ public class SacramentalMinistryController {
         .toList();
   }
 
+  @GetMapping("/sacraments/{id}")
+  @Operation(summary = "Get sacrament by ID")
+  public SacramentResponse getSacrament(@PathVariable Long id) {
+    Sakrament sacrament = service.getSacrament(id);
+    return new SacramentResponse(sacrament.getId(), sacrament.getNazwa(), sacrament.getOpis());
+  }
+
   @PostMapping("/sacraments")
   @Operation(summary = "Create sacrament type")
   public ResponseEntity<SacramentResponse> addSacrament(@RequestBody AddSacramentRequest req) {

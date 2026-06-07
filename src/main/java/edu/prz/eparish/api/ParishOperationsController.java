@@ -79,6 +79,12 @@ public class ParishOperationsController {
     return service.listPositions(name).stream().map(this::toPositionResponse).toList();
   }
 
+  @GetMapping("/positions/{id}")
+  @Operation(summary = "Get position by ID")
+  public PositionResponse getPosition(@PathVariable Long id) {
+    return toPositionResponse(service.getPosition(id));
+  }
+
   @PostMapping("/positions")
   @Operation(summary = "UC: Przydzielanie stanowiska — create position")
   public ResponseEntity<PositionResponse> addPosition(@RequestBody AddPositionRequest req) {

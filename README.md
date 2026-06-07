@@ -155,11 +155,20 @@ GET /api/announcements?eventId=1
 
 ### PATCH i DELETE
 
-**PATCH** — częściowa aktualizacja: w body wysyłasz tylko pola do zmiany; pola `null`/pominięte pozostają bez zmian.
+**PATCH** — częściowa aktualizacja: w body wysyłasz tylko pola do zmiany; pola pominięte pozostają bez zmian.
+
+Wyjątek — jawne `null` czyści przypisanie:
+- `PATCH /api/parishioners/{id}` z `{"familyId": null}` → usuwa parafianina z rodziny
+- `PATCH /api/parishes/{id}` z `{"localityId": null}` → usuwa przypisanie miejscowości
 
 ```http
 PATCH /api/announcements/3
 {"content": "Nowa treść ogłoszenia"}
+```
+
+```http
+PATCH /api/parishioners/1
+{"familyId": null}
 ```
 
 **DELETE** — usuwa rekord, odpowiedź **204 No Content**.
@@ -221,7 +230,31 @@ Listy z opcjonalnym filtrowaniem (patrz sekcja **Filtrowanie list** powyżej):
 /api/documents
 ```
 
-Szczegół po ID: np. `/api/events/1`, `/api/parishioners/1`, `/api/offerings/1`, `/api/sacrament-administrations/1`.
+Szczegół po ID (`GET /api/{zasób}/{id}`):
+
+| Zasób | Przykład |
+|-------|----------|
+| Wydarzenia, parafie, parafianie, intencje, ogłoszenia, ofiary | `/api/events/1`, `/api/parishes/1`, `/api/parishioners/1`, `/api/intentions/1`, `/api/announcements/1`, `/api/offerings/1` |
+| Harmonogramy, diecezje, dokumenty, stanowiska, sakramenty | `/api/schedules/1`, `/api/dioceses/1`, `/api/documents/1`, `/api/positions/1`, `/api/sacraments/1` |
+| Udzielanie sakramentu, pracownicy, księża, grupy, rodziny | `/api/sacrament-administrations/1`, `/api/employees/1`, `/api/priests/1`, `/api/groups/1`, `/api/families/1` |
+
+### POST bezpośredni (eventId / recordId w body)
+
+Niektóre zasoby można tworzyć dwoma ścieżkami — zagnieżdżoną lub z ID w body (jak intencje i ogłoszenia):
+
+| Zasób | Zagnieżdżony POST | Bezpośredni POST (ID w body) |
+|-------|-------------------|------------------------------|
+| Intencja | `POST /api/events/{id}/intentions` | `POST /api/intentions` — pole `eventId` |
+| Ogłoszenie | `POST /api/events/{id}/announcements` | `POST /api/announcements` — pole `eventId` |
+| Ofiara | `POST /api/events/{id}/offerings` | `POST /api/offerings` — pole `eventId` |
+| Uczestnik | `POST /api/events/{id}/participants` | `POST /api/participants` — pole `eventId` |
+| Organizator | `POST /api/events/{id}/organizers` | `POST /api/organizers` — pole `eventId` |
+
+### Uwagi dla testerów
+
+**Parafia — pole miejscowości:** w body używaj `localityId` (alias JSON: `localitiesId`). Relacja parafia–miejscowość to `@ManyToOne` — wiele parafii może być w jednej miejscowości.
+
+**Adres rodziny:** wymagane pole `familyId` (aliasy: `rodzinaId`, `rodzina_id`). Model 1:1 — jedna rodzina ma jeden adres. W seedzie rodzina id=1 ma już adres; do testu POST użyj rodziny **bez adresu** (np. `familyId: 2`). Brak `familyId` → `400`, duplikat adresu → `409`.
 
 ### Przykłady JSON
 
@@ -283,6 +316,26 @@ Szczegół po ID: np. `/api/events/1`, `/api/parishioners/1`, `/api/offerings/1`
 ```
 
 **Usunięcie intencji** — `DELETE /api/intentions/1` → odpowiedź `204 No Content`
+
+**Uczestnik (bezpośredni POST)** — `POST /api/participants`
+```json
+{
+  "firstName": "Maria",
+  "lastName": "Kowalska",
+  "role": "Lektorka",
+  "eventId": 1
+}
+```
+
+**Ofiara (bezpośredni POST)** — `POST /api/offerings`
+```json
+{
+  "amount": 50.00,
+  "date": "2026-06-01",
+  "type": "COLLECTION",
+  "eventId": 1
+}
+```
 
 ---
 
@@ -371,6 +424,16 @@ src/main/java/edu/prz/eparish/
 .\gradlew.bat build          # kompilacja + testy
 .\gradlew.bat compileJava    # tylko kompilacja
 ```
+
+---
+
+## Historia zmian (skrót)
+
+| Data | Zmiana |
+|------|--------|
+| cze 2026 | Poprawki po testach: GET `/{id}` dla `schedules`, `dioceses`, `documents`, `positions`, `sacraments`; bezpośredni POST dla `offerings`, `participants`, `organizers`; PATCH z `familyId`/`localityId: null` czyści przypisanie; parafia–miejscowość `@ManyToOne`; walidacja `POST /api/family-addresses` |
+| cze 2026 | PATCH + DELETE na głównych zasobach; filtrowanie list GET; `ListFilterSupport` |
+| maj 2026 | Refaktoring DDD: 6 serwisów, 6 fabryk, 3 agregaty, 20 UC, Swagger UI |
 
 ---
 

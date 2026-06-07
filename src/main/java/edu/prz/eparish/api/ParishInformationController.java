@@ -14,6 +14,9 @@ import edu.prz.eparish.informacjeoparafii.domain.dokument.Dokument;
 import edu.prz.eparish.informacjeoparafii.domain.kartoteka.Kartoteka;
 import edu.prz.eparish.informacjeoparafii.domain.miejscowosc.Miejscowosc;
 import edu.prz.eparish.informacjeoparafii.domain.parafia.Parafia;
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.LocalDate;
@@ -39,6 +42,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class ParishInformationController {
 
   private final ParishInformationService service;
+  private final ObjectMapper objectMapper;
 
   // ── DIOCESES — UC: Dodaj diecezję ───────────────────────────────────────────
 
@@ -49,6 +53,12 @@ public class ParishInformationController {
       @RequestParam(required = false) String see,
       @RequestParam(required = false) String bishop) {
     return service.listDioceses(name, see, bishop).stream().map(this::toDioceseResponse).toList();
+  }
+
+  @GetMapping("/dioceses/{id}")
+  @Operation(summary = "Get diocese by ID")
+  public DioceseResponse getDiocese(@PathVariable Long id) {
+    return toDioceseResponse(service.getDiocese(id));
   }
 
   @PostMapping("/dioceses")
@@ -154,9 +164,11 @@ public class ParishInformationController {
 
   @PatchMapping("/parishes/{id}")
   @Operation(summary = "Partially update parish")
-  public ParishResponse patchParish(@PathVariable Long id, @RequestBody PatchParishRequest req) {
+  public ParishResponse patchParish(@PathVariable Long id, @RequestBody JsonNode body) {
+    PatchParishRequest req = objectMapper.convertValue(body, PatchParishRequest.class);
     return toParishResponse(service.patchParish(id, new ParishInformationService.PatchParishCommand(
-        req.name(), req.address(), req.phone(), req.email(), req.erectionDate(), req.localityId())));
+        req.name(), req.address(), req.phone(), req.email(), req.erectionDate(),
+        body.has("localityId") || body.has("localitiesId"), req.localityId())));
   }
 
   @DeleteMapping("/parishes/{id}")
@@ -206,12 +218,12 @@ public class ParishInformationController {
 
   @PatchMapping("/parishioners/{id}")
   @Operation(summary = "Partially update parishioner")
-  public ParishionerResponse patchParishioner(
-      @PathVariable Long id, @RequestBody PatchParishionerRequest req) {
+  public ParishionerResponse patchParishioner(@PathVariable Long id, @RequestBody JsonNode body) {
+    PatchParishionerRequest req = objectMapper.convertValue(body, PatchParishionerRequest.class);
     return toParishionerResponse(service.patchParishioner(id,
         new ParishInformationService.PatchParishionerCommand(
             req.firstName(), req.lastName(), req.pesel(), req.birthDate(),
-            req.phone(), req.email(), req.parishId(), req.familyId())));
+            req.phone(), req.email(), req.parishId(), body.has("familyId"), req.familyId())));
   }
 
   @DeleteMapping("/parishioners/{id}")
@@ -277,6 +289,12 @@ public class ParishInformationController {
   }
 
   // ── DOCUMENTS — UC: Zarządzanie dokumentacją ────────────────────────────────
+
+  @GetMapping("/documents/{id}")
+  @Operation(summary = "Get document by ID")
+  public DocumentResponse getDocument(@PathVariable Long id) {
+    return toDocumentResponse(service.getDocument(id));
+  }
 
   @GetMapping("/documents")
   @Operation(summary = "List documents (optional filters: recordId, type)")
@@ -379,9 +397,9 @@ public class ParishInformationController {
   public record LocalityResponse(Long id, String name, String postalCode, String province, Long dioceseId) {}
 
   public record AddParishRequest(String name, String address, String phone, String email,
-      LocalDate erectionDate, Long localityId) {}
+      LocalDate erectionDate, @JsonAlias("localitiesId") Long localityId) {}
   public record PatchParishRequest(String name, String address, String phone, String email,
-      LocalDate erectionDate, Long localityId) {}
+      LocalDate erectionDate, @JsonAlias("localitiesId") Long localityId) {}
   public record ParishResponse(Long id, String name, String address, String phone, String email,
       LocalDate erectionDate, Long localityId) {}
 

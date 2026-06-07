@@ -109,8 +109,12 @@ Od czerwca 2026 każdy główny zasób listowy obsługuje pełny CRUD-lite:
 | **GET** `/{id}` | Pojedynczy rekord (gdzie dotyczy) |
 | **POST** | Tworzenie |
 | **PUT** | Pełna aktualizacja (tam, gdzie była wcześniej) |
-| **PATCH** | Częściowa aktualizacja — tylko niepuste pola w body |
+| **PATCH** | Częściowa aktualizacja — tylko pola obecne w body; jawne `null` na `familyId` / `localityId` czyści przypisanie |
 | **DELETE** | Usunięcie — odpowiedź `204 No Content` |
+
+**GET `/{id}`** — dostępne m.in. dla: `events`, `schedules`, `dioceses`, `documents`, `positions`, `sacraments`, `parishes`, `parishioners`, `offerings`, `sacrament-administrations`, `employees`, `priests`, `groups`, `families`, `intentions`, `announcements`.
+
+**POST bezpośredni (ID w body)** — oprócz ścieżek zagnieżdżonych (`/api/events/{id}/…`) działają też: `POST /api/intentions`, `/api/announcements`, `/api/offerings`, `/api/participants`, `/api/organizers` (pole `eventId` w JSON).
 
 Przykład testowy (ogłoszenia wydarzenia):
 
@@ -148,17 +152,18 @@ Endpointy specjalne bez zmian: `PUT .../realize`, `PUT .../complete`, `PUT .../t
 | `EntityIds` — helper generowania ID | ✅ |
 | Pole `status` na `Obowiazek` (ASSIGNED/COMPLETED) | ✅ |
 | Pole `status` na `Intencja` (PLANNED/REALIZED) | ✅ |
+| Poprawki endpointów po testach (cze 2026, patrz §12) | ✅ |
 
 ### Serwisy i przypadki użycia
 
 | Serwis | UC (metody) |
 |--------|------------|
-| `EventCoordinationService` | createEvent, updateEvent, **patchEvent**, deleteEvent, assignIntention, **patchIntention**, **deleteIntention**, **realizeIntention**, addAnnouncement, **patchAnnouncement**, **deleteAnnouncement**, recordOffering, **patchOffering**, **deleteOffering**, assignParticipant, **patchParticipant**, **removeParticipant**, assignOrganizer, **patchOrganizer**, **removeOrganizer**, **patchEventType**, **deleteEventType**, **patchSchedule**, **deleteSchedule**, getEventAggregate, **list\*** z filtrami |
-| `ParishInformationService` | addDiocese, updateDiocese, **patchDiocese**, **deleteDiocese**, addLocality, **updateLocality**, **patchLocality**, **deleteLocality**, addParish, updateParish, **patchParish**, **deleteParish**, registerParishioner, updateParishioner, **patchParishioner**, deleteParishioner, createRecord, updateRecord, **patchRecord**, deleteRecord, addDocument, **patchDocument**, deleteDocument, getParishionerAggregate, **list\*** z filtrami |
-| `PastoralCareService` | addFamily, updateFamilyName, **patchFamily**, **deleteFamily**, assignParishionerToFamily, addFamilyAddress, updateFamilyAddress, **patchFamilyAddress**, **deleteFamilyAddress**, **list\*** z filtrami |
+| `EventCoordinationService` | createEvent, updateEvent, **patchEvent**, deleteEvent, assignIntention, **patchIntention**, **deleteIntention**, **realizeIntention**, addAnnouncement, **patchAnnouncement**, **deleteAnnouncement**, recordOffering, **patchOffering**, **deleteOffering**, **getOffering**, assignParticipant, **patchParticipant**, **removeParticipant**, assignOrganizer, **patchOrganizer**, **removeOrganizer**, **patchEventType**, **deleteEventType**, **patchSchedule**, **deleteSchedule**, **getSchedule**, getEventAggregate, **list\*** z filtrami |
+| `ParishInformationService` | addDiocese, updateDiocese, **patchDiocese**, **deleteDiocese**, **getDiocese**, addLocality, **updateLocality**, **patchLocality**, **deleteLocality**, addParish, updateParish, **patchParish**, **deleteParish**, registerParishioner, updateParishioner, **patchParishioner** (w tym `familyId: null`), deleteParishioner, createRecord, updateRecord, **patchRecord**, deleteRecord, addDocument, **patchDocument**, **deleteDocument**, **getDocument**, getParishionerAggregate, **list\*** z filtrami |
+| `PastoralCareService` | addFamily, updateFamilyName, **patchFamily**, **deleteFamily**, assignParishionerToFamily, addFamilyAddress (walidacja `familyId`, konflikt 409), updateFamilyAddress, **patchFamilyAddress**, **deleteFamilyAddress**, **list\*** z filtrami |
 | `ParishGroupService` | createGroup, updateGroup, **patchGroup**, **deleteGroup**, addMembership, **patchMembership**, **deleteMembership**, terminateMembership, getGroupAggregate, **list\*** z filtrami |
-| `ParishOperationsService` | addEmployee, **patchEmployee**, **deleteEmployee**, addPosition, **patchPosition**, **deletePosition**, assignDuty, **patchDuty**, **deleteDuty**, **completeDuty**, **list\*** z filtrami |
-| `SacramentalMinistryService` | addPriest, **patchPriest**, **deletePriest**, addSacrament, **patchSacrament**, **deleteSacrament**, registerSacrament, **patchAdministration**, **deleteAdministration**, **list\*** z filtrami |
+| `ParishOperationsService` | addEmployee, **patchEmployee**, **deleteEmployee**, addPosition, **patchPosition**, **deletePosition**, **getPosition**, assignDuty, **patchDuty**, **deleteDuty**, **completeDuty**, **list\*** z filtrami |
+| `SacramentalMinistryService` | addPriest, **patchPriest**, **deletePriest**, addSacrament, **patchSacrament**, **deleteSacrament**, **getSacrament**, registerSacrament, **patchAdministration**, **deleteAdministration**, **list\*** z filtrami |
 
 ### Metody domenowe agregatów
 
@@ -210,6 +215,8 @@ Kluczowe zależności w testach:
 - **Register Sacrament** → `parishionerId: 1`, `priestId: 1`, `sacramentId: 1`
 - **Add Employee** → `parishId: 1`, `positionId: 1`
 - **Documents filter** → `GET /api/documents?recordId=1` → dokumenty parafianina Jan Kowalski
+- **Add Family Address** → `familyId: 2` (rodzina 1 ma już adres w seedzie); wymagane pole `familyId`
+- **POST Parish** → pole `localityId` (alias `localitiesId`); wiele parafii może wskazywać tę samą miejscowość
 
 ---
 
@@ -348,11 +355,31 @@ H2 in-memory, `ddl-auto=create-drop` — izolacja między testami.
 
 | Data | Zmiana |
 |------|--------|
+| cze 2026 | Poprawki po testach — patrz §12 |
 | cze 2026 | PATCH + DELETE na wszystkich głównych zasobach; filtrowanie list GET po query params; `ListFilterSupport`; GET by id dla `offerings` i `sacrament-administrations` |
 | maj 2026 | Pełny refaktoring do DDD: 6 serwisów, 6 fabryk, 3 agregaty z metodami domenowymi; 20 UC; PUT/DELETE; Swagger UI |
 | maj 2026 | `ApiIntegrationTest` (9 scenariuszy), profil testowy |
 | maj 2026 | `HomeController`, `data.sql` pełny seed, `EntityIds` helper |
 | maj 2026 | Wszystkie encje JPA (24), repozytoria, kontrolery bazowe |
+
+---
+
+## 12. Poprawki po testach (cze 2026)
+
+Zgłoszenia testera i wprowadzone zmiany:
+
+| Problem | Rozwiązanie |
+|---------|-------------|
+| `GET /api/schedules/{id}` → 405 | Dodano endpoint GET + `EventCoordinationService.getSchedule()` |
+| `POST /api/participants`, `/api/organizers`, `/api/offerings` → 405 | Dodano bezpośredni POST z `eventId` w body (jak intencje/ogłoszenia) |
+| `GET /api/positions/{id}`, `/api/documents/{id}`, `/api/sacraments/{id}`, `/api/dioceses/{id}` → 405 | Dodano GET po ID w kontrolerach i serwisach |
+| `POST /api/parishes` z `localityId` → 500 | Zmiana relacji `Parafia`→`Miejscowosc` z `@OneToOne` na `@ManyToOne` |
+| `localityId` null w odpowiedzi przy `localitiesId` w body | `@JsonAlias("localitiesId")` na requestach parafii |
+| `PATCH /api/parishioners/{id}` z `familyId: null` nie czyścił rodziny | PATCH rozpoznaje jawne `null` i ustawia `rodzina = null` |
+| `PATCH /api/parishes/{id}` — to samo dla `localityId` | Analogiczna obsługa jawnego `null` na `localityId` |
+| `POST /api/family-addresses` → 404 | Walidacja: brak `familyId` → 400; rodzina z adresem → 409; aliasy `rodzinaId` / `rodzina_id` |
+
+Zmienione pliki (główne): `EventCoordinationController`, `ParishInformationController`, `ParishOperationsController`, `SacramentalMinistryController`, odpowiadające serwisy, `Parafia.java`, `AdresRodzinyRepozytorium.java`.
 
 ---
 

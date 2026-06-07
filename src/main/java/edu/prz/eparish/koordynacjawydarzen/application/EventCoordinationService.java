@@ -187,6 +187,11 @@ public class EventCoordinationService {
         ListFilterSupport.eq(date, Harmonogram::getData));
   }
 
+  public Harmonogram getSchedule(Long id) {
+    return scheduleRepo.findById(id)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Schedule not found"));
+  }
+
   // ── UC: Zarządzanie typami wydarzeń ─────────────────────────────────────────
 
   public TypWydarzenia createEventType(String name) {

@@ -219,6 +219,14 @@ public class EventCoordinationController {
     return ResponseEntity.status(HttpStatus.CREATED).body(toOfferingResponse(offering));
   }
 
+  @PostMapping("/offerings")
+  @Operation(summary = "UC: Ewidencja ofiar — record offering (eventId in body)")
+  public ResponseEntity<OfferingResponse> addOfferingDirect(@RequestBody AddOfferingDirectRequest req) {
+    Ofiara offering = service.recordOffering(req.eventId(),
+        new RecordOfferingCommand(req.amount(), req.date(), req.type()));
+    return ResponseEntity.status(HttpStatus.CREATED).body(toOfferingResponse(offering));
+  }
+
   @PatchMapping("/offerings/{id}")
   @Operation(summary = "Partially update offering")
   public OfferingResponse patchOffering(@PathVariable Long id, @RequestBody PatchOfferingRequest req) {
@@ -252,6 +260,14 @@ public class EventCoordinationController {
     return ResponseEntity.status(HttpStatus.CREATED).body(toParticipantResponse(participant));
   }
 
+  @PostMapping("/participants")
+  @Operation(summary = "UC: Przypisanie uczestników — assign participant (eventId in body)")
+  public ResponseEntity<ParticipantResponse> addParticipantDirect(@RequestBody AddPersonDirectRequest req) {
+    Uczestnik participant = service.assignParticipant(req.eventId(),
+        new AssignPersonCommand(req.firstName(), req.lastName(), req.role()));
+    return ResponseEntity.status(HttpStatus.CREATED).body(toParticipantResponse(participant));
+  }
+
   @PatchMapping("/participants/{id}")
   @Operation(summary = "Partially update participant")
   public ParticipantResponse patchParticipant(@PathVariable Long id, @RequestBody PatchPersonRequest req) {
@@ -281,6 +297,14 @@ public class EventCoordinationController {
   public ResponseEntity<OrganizerResponse> addOrganizerToEvent(
       @PathVariable Long id, @RequestBody AddPersonRequest req) {
     Organizator organizer = service.assignOrganizer(id,
+        new AssignPersonCommand(req.firstName(), req.lastName(), req.role()));
+    return ResponseEntity.status(HttpStatus.CREATED).body(toOrganizerResponse(organizer));
+  }
+
+  @PostMapping("/organizers")
+  @Operation(summary = "UC: Przypisanie organizatorów — assign organizer (eventId in body)")
+  public ResponseEntity<OrganizerResponse> addOrganizerDirect(@RequestBody AddPersonDirectRequest req) {
+    Organizator organizer = service.assignOrganizer(req.eventId(),
         new AssignPersonCommand(req.firstName(), req.lastName(), req.role()));
     return ResponseEntity.status(HttpStatus.CREATED).body(toOrganizerResponse(organizer));
   }
@@ -361,6 +385,12 @@ public class EventCoordinationController {
   @Operation(summary = "List schedules (optional filter: date)")
   public List<ScheduleResponse> listSchedules(@RequestParam(required = false) LocalDate date) {
     return service.listSchedules(date).stream().map(this::toScheduleResponse).toList();
+  }
+
+  @GetMapping("/schedules/{id}")
+  @Operation(summary = "Get schedule by ID")
+  public ScheduleResponse getSchedule(@PathVariable Long id) {
+    return toScheduleResponse(service.getSchedule(id));
   }
 
   @PostMapping("/schedules")
@@ -475,11 +505,15 @@ public class EventCoordinationController {
 
   public record AddOfferingRequest(BigDecimal amount, LocalDate date, String type) {}
 
+  public record AddOfferingDirectRequest(BigDecimal amount, LocalDate date, String type, Long eventId) {}
+
   public record PatchOfferingRequest(BigDecimal amount, LocalDate date, String type) {}
 
   public record OfferingResponse(Long id, BigDecimal amount, LocalDate date, String type, Long eventId) {}
 
   public record AddPersonRequest(String firstName, String lastName, String role) {}
+
+  public record AddPersonDirectRequest(String firstName, String lastName, String role, Long eventId) {}
 
   public record PatchPersonRequest(String firstName, String lastName, String role) {}
 

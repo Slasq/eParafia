@@ -118,6 +118,10 @@ public class ParishOperationsService {
         ListFilterSupport.containsIgnoreCase(name, Stanowisko::getNazwa));
   }
 
+  public Stanowisko getPosition(Long id) {
+    return requirePosition(id);
+  }
+
   // ── UC: Przydzielanie obowiązku ──────────────────────────────────────────────
 
   public Obowiazek assignDuty(AssignDutyCommand cmd) {

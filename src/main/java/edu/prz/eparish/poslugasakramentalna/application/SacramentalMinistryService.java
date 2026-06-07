@@ -141,6 +141,11 @@ public class SacramentalMinistryService {
         ListFilterSupport.containsIgnoreCase(name, Sakrament::getNazwa));
   }
 
+  public Sakrament getSacrament(Long id) {
+    return sacramentRepo.findById(id)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Sacrament not found"));
+  }
+
   // ── UC: Rejestrowanie sakramentów ────────────────────────────────────────────
 
   public UdzielanieSakramentu registerSacrament(RegisterSacramentCommand cmd) {

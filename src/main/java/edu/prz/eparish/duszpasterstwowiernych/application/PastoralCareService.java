@@ -100,7 +100,13 @@ public class PastoralCareService {
   // ── UC: Dodanie adresu rodziny ────────────────────────────────────────────────
 
   public AdresRodziny addFamilyAddress(AddAddressCommand cmd) {
+    if (cmd.familyId() == null) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "familyId is required");
+    }
     Rodzina family = requireFamily(cmd.familyId());
+    if (addressRepo.findByRodzina_Id(cmd.familyId()).isPresent()) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, "Family already has an address");
+    }
     AdresRodziny address = factory.createFamilyAddress(
         cmd.street(), cmd.houseNumber(), cmd.apartmentNumber(),
         cmd.postalCode(), cmd.city(), family);

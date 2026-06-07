@@ -11,6 +11,7 @@ import edu.prz.eparish.grupyparafialne.application.ParishGroupService.CreateGrou
 import edu.prz.eparish.grupyparafialne.domain.czlonkostwo.Czlonkostwo;
 import edu.prz.eparish.grupyparafialne.domain.grupa.GrupaParafialna;
 import edu.prz.eparish.grupyparafialne.domain.grupa.GrupaParafialnaAgregat;
+import com.fasterxml.jackson.annotation.JsonAlias;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.LocalDate;
@@ -278,7 +279,7 @@ public class PastoralCareController {
   public record AssignmentResponse(Long parishionerId, Long familyId) {}
 
   public record AddFamilyAddressRequest(String street, String houseNumber, String apartmentNumber,
-      String postalCode, String city, Long familyId) {}
+      String postalCode, String city, @JsonAlias({"rodzinaId", "rodzina_id"}) Long familyId) {}
   public record PatchFamilyAddressRequest(String street, String houseNumber, String apartmentNumber,
       String postalCode, String city) {}
   public record FamilyAddressResponse(Long id, String street, String houseNumber,
