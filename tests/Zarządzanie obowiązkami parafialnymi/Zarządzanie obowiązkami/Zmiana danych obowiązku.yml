@@ -1,0 +1,24 @@
+info:
+  name: Zmiana danych obowiązku
+  type: http
+  seq: 4
+
+http:
+  method: PATCH
+  url: "{{baseUrl}}/api/duties/11"
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Przygotowanie kościoła do uroczystości",
+        "description": "Przygotowanie prezbiterium, ksiąg liturgicznych, świec oraz sprawdzenie porządku przed uroczystą mszą",
+        "status": "COMPLETED",
+        "positionId": 2
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -1,0 +1,22 @@
+info:
+  name: Dodanie nowego typu sakramentu
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/sacraments"
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Sakrament testowy formacyjny",
+        "description": "Testowy typ sakramentu dodany w celu sprawdzenia zarządzania sakramentami w systemie"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

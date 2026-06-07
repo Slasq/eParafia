@@ -1,0 +1,23 @@
+info:
+  name: Dodanie kartoteki temu nowemu parafianinowi
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/records"
+  body:
+    type: json
+    data: |-
+      {
+        "createdAt": "2026-07-18",
+        "description": "Kartoteka nowego parafianina utworzona podczas testu prowadzenia kartotek parafian",
+        "parishionerId": 12
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

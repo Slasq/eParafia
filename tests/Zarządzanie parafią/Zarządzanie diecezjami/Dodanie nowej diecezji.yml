@@ -1,0 +1,23 @@
+info:
+  name: Dodanie nowej diecezji
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/dioceses"
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Diecezja Rzeszowska Testowa",
+        "see": "Rzeszów",
+        "bishop": "bp Damian Testowy"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

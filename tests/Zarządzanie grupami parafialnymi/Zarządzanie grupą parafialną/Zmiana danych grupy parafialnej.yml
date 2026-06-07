@@ -1,0 +1,23 @@
+info:
+  name: Zmiana danych grupy parafialnej
+  type: http
+  seq: 4
+
+http:
+  method: PATCH
+  url: "{{baseUrl}}/api/groups/1"
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Grupa modlitewna św. Rity - aktualizacja",
+        "description": "Zaktualizowany opis grupy parafialnej po zmianie danych",
+        "guardian": "Maria Zielińska"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

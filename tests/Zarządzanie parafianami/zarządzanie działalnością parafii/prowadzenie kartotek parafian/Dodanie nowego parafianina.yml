@@ -1,0 +1,28 @@
+info:
+  name: Dodanie nowego parafianina
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/parishioners"
+  body:
+    type: json
+    data: |-
+      {
+        "firstName": "Natalia",
+        "lastName": "Brzozowska",
+        "pesel": "94051867291",
+        "birthDate": "1994-05-18",
+        "phone": "517842936",
+        "email": "natalia.brzozowska@example.test",
+        "parishId": 4,
+        "familyId": 6
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -1,0 +1,28 @@
+info:
+  name: Dodanie parafianina przypisanego do rodziny
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/parishioners"
+  body:
+    type: json
+    data: |-
+      {
+        "firstName": "Karolina",
+        "lastName": "Witkowska",
+        "pesel": "97031458261",
+        "birthDate": "1997-03-14",
+        "phone": "536819274",
+        "email": "karolina.witkowska@example.test",
+        "parishId": 6,
+        "familyId": 2
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

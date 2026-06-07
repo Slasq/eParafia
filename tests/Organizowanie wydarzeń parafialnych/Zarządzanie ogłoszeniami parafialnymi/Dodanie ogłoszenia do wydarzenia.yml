@@ -1,0 +1,22 @@
+info:
+  name: Dodanie ogłoszenia do wydarzenia
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/announcements"
+  body:
+    type: json
+    data: |-
+      {
+        "content": "Ogłoszenie parafialne dodane przez Bruno.",
+        "eventId": 1
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

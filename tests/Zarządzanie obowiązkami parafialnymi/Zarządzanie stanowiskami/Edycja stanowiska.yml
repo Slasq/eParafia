@@ -1,0 +1,22 @@
+info:
+  name: Edycja stanowiska
+  type: http
+  seq: 4
+
+http:
+  method: PATCH
+  url: "{{baseUrl}}/api/positions/11"
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Starsza pomoc administracyjna",
+        "description": "Rozszerzony zakres obowiązków administracyjnych i kancelaryjnych"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

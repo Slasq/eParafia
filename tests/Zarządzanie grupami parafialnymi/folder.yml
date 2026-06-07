@@ -1,0 +1,7 @@
+info:
+  name: Zarządzanie grupami parafialnymi
+  type: folder
+  seq: 7
+
+request:
+  auth: inherit

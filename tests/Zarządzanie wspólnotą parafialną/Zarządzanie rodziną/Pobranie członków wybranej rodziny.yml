@@ -1,0 +1,19 @@
+info:
+  name: Pobranie członków wybranej rodziny
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/parishioners?familyId=1"
+  params:
+    - name: familyId
+      value: "1"
+      type: query
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

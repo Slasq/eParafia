@@ -1,0 +1,22 @@
+info:
+  name: Zmiana danych rodziny
+  type: http
+  seq: 4
+
+http:
+  method: PATCH
+  url: "{{baseUrl}}/api/families/11"
+  body:
+    type: json
+    data: |-
+      {
+        "familyName": "Majewscy-Kowalik",
+        "membersCount": 5
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

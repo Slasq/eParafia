@@ -1,0 +1,7 @@
+info:
+  name: Zarządzanie obowiązkami parafialnymi
+  type: folder
+  seq: 3
+
+request:
+  auth: inherit

@@ -1,0 +1,7 @@
+info:
+  name: prowadzenie ewidencji ofiar
+  type: folder
+  seq: 3
+
+request:
+  auth: inherit

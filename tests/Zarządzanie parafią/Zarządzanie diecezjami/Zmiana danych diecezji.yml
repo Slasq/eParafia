@@ -1,0 +1,23 @@
+info:
+  name: Zmiana danych diecezji
+  type: http
+  seq: 4
+
+http:
+  method: PATCH
+  url: "{{baseUrl}}/api/dioceses/11"
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Diecezja Rzeszowska po aktualizacji",
+        "see": "Nowa siedziba diecezji",
+        "bishop": "bp Marek Aktualny"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

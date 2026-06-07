@@ -1,0 +1,7 @@
+info:
+  name: Organizowanie wydarzeń parafialnych
+  type: folder
+  seq: 1
+
+request:
+  auth: inherit

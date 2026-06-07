@@ -1,0 +1,23 @@
+info:
+  name: Edycja harmonogramu
+  type: http
+  seq: 4
+
+http:
+  method: PATCH
+  url: "{{baseUrl}}/api/schedules/1"
+  body:
+    type: json
+    data: |-
+      {
+        "date": "2026-07-21",
+        "time": "19:00:00",
+        "description": "Zmieniony opis harmonogramu"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

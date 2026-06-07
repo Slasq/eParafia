@@ -1,0 +1,7 @@
+info:
+  name: prowadzenie kartotek parafian
+  type: folder
+  seq: 1
+
+request:
+  auth: inherit

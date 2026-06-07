@@ -1,0 +1,22 @@
+info:
+  name: Dodanie nowego stanowiska
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/positions"
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Koordynator wydarzeń parafialnych",
+        "description": "Osoba odpowiedzialna za organizację wydarzeń, spotkań i uroczystości parafialnych"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

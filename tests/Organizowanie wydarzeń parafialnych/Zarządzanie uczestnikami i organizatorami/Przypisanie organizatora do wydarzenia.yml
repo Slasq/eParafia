@@ -1,0 +1,24 @@
+info:
+  name: Przypisanie organizatora do wydarzenia
+  type: http
+  seq: 6
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/organizers"
+  body:
+    type: json
+    data: |-
+      {
+        "firstName": "Robert",
+        "lastName": "Maj",
+        "role": "koordynator wydarzenia",
+        "eventId": 10
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

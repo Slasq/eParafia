@@ -1,0 +1,21 @@
+info:
+  name: Edycja opisu istniejącej kartoteki
+  type: http
+  seq: 4
+
+http:
+  method: PATCH
+  url: "{{baseUrl}}/api/records/10"
+  body:
+    type: json
+    data: |-
+      {
+        "description": "Zaktualizowany opis istniejącej kartoteki w ramach testu zarządzania parafią i dokumentacją"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

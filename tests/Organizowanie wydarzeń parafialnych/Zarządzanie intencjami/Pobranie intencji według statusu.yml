@@ -1,0 +1,19 @@
+info:
+  name: Pobranie intencji według statusu
+  type: http
+  seq: 4
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/intentions?status=REALIZED"
+  params:
+    - name: status
+      value: REALIZED
+      type: query
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

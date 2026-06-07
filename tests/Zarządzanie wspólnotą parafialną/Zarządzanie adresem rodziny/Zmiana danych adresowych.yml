@@ -1,0 +1,25 @@
+info:
+  name: Zmiana danych adresowych
+  type: http
+  seq: 4
+
+http:
+  method: PATCH
+  url: "{{baseUrl}}/api/family-addresses/11"
+  body:
+    type: json
+    data: |-
+      {
+        "street": "ul. Lipowa",
+        "houseNumber": "41",
+        "apartmentNumber": "12",
+        "postalCode": "50-141",
+        "city": "Wroclaw"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

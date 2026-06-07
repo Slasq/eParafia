@@ -1,0 +1,7 @@
+info:
+  name: Zarządzanie adresem rodziny
+  type: folder
+  seq: 3
+
+request:
+  auth: inherit

@@ -1,0 +1,19 @@
+info:
+  name: Pobranie organizatorów danego wydarzenia
+  type: http
+  seq: 4
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/organizers?eventId=2"
+  params:
+    - name: eventId
+      value: "2"
+      type: query
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

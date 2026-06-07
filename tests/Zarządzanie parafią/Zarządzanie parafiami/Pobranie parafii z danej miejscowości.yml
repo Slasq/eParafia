@@ -1,0 +1,19 @@
+info:
+  name: Pobranie parafii z danej miejscowości
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/parishes?localityId=1"
+  params:
+    - name: localityId
+      value: "1"
+      type: query
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

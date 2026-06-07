@@ -1,0 +1,24 @@
+info:
+  name: Dodanie nowej miejscowości do diecezji
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/localities"
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Rzeszów",
+        "postalCode": "35-001",
+        "province": "podkarpackie",
+        "dioceseId": 5
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

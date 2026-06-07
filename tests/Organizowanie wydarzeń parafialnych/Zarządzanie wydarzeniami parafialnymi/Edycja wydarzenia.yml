@@ -1,0 +1,27 @@
+info:
+  name: Edycja wydarzenia
+  type: http
+  seq: 4
+
+http:
+  method: PATCH
+  url: "{{baseUrl}}/api/events/11"
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Zaktualizowane wydarzenie parafialne",
+        "dateTime": "2026-07-12T19:30:00",
+        "place": "Sala parafialna numer 2",
+        "description": "Zmieniony opis wydarzenia po aktualizacji danych w teście Bruno",
+        "parishId": 3,
+        "eventTypeId": 4,
+        "scheduleId": 6
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

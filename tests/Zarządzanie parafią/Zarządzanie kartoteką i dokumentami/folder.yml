@@ -1,0 +1,7 @@
+info:
+  name: Zarządzanie kartoteką i dokumentami
+  type: folder
+  seq: 4
+
+request:
+  auth: inherit

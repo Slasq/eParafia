@@ -1,0 +1,23 @@
+info:
+  name: Dodanie harmonogramu
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/schedules"
+  body:
+    type: json
+    data: |-
+      {
+        "date": "2026-07-20",
+        "time": "18:00:00",
+        "description": "Harmonogram testowy dodany przez Bruno"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

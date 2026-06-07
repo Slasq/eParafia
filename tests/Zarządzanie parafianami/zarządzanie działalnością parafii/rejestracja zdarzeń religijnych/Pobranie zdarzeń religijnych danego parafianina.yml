@@ -1,0 +1,19 @@
+info:
+  name: Pobranie zdarzeń religijnych danego parafianina
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/sacrament-administrations?parishionerId=6"
+  params:
+    - name: parishionerId
+      value: "6"
+      type: query
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

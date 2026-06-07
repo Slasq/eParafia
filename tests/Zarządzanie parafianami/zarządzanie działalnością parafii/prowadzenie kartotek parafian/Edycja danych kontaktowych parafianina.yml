@@ -1,0 +1,28 @@
+info:
+  name: Edycja danych kontaktowych parafianina
+  type: http
+  seq: 5
+
+http:
+  method: PATCH
+  url: "{{baseUrl}}/api/parishioners/10"
+  body:
+    type: json
+    data: |-
+      {
+        "firstName": "Natalia",
+        "lastName": "Brzozowska-Kowal",
+        "pesel": "94051867291",
+        "birthDate": "1994-05-18",
+        "phone": "606913724",
+        "email": "n.brzozowska.updated@example.test",
+        "parishId": 4,
+        "familyId": 6
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

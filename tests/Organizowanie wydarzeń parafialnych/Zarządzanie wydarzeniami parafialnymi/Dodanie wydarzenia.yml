@@ -1,0 +1,27 @@
+info:
+  name: Dodanie wydarzenia
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/events"
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Wydarzenie testowe",
+        "dateTime": "2027-07-15T18:30:00",
+        "place": "Sala parafialna",
+        "description": "Wydarzenie dodane podczas testów API w Bruno",
+        "parishId": 1,
+        "eventTypeId": 1,
+        "scheduleId": 1
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

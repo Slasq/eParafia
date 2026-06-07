@@ -1,0 +1,7 @@
+info:
+  name: rejestracja zdarzeń religijnych
+  type: folder
+  seq: 2
+
+request:
+  auth: inherit

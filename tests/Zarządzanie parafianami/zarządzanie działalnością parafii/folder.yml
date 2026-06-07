@@ -1,0 +1,7 @@
+info:
+  name: zarządzanie działalnością parafii
+  type: folder
+  seq: 1
+
+request:
+  auth: inherit

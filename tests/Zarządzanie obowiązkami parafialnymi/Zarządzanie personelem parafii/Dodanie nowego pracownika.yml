@@ -1,0 +1,25 @@
+info:
+  name: Dodanie nowego pracownika
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/employees"
+  body:
+    type: json
+    data: |+
+      {
+        "firstName": "Sebastian",
+        "lastName": "Malinowski",
+        "positionId": 2,
+        "parishId": 3
+      }
+
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

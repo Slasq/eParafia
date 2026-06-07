@@ -1,0 +1,7 @@
+info:
+  name: Zarządzanie personelem parafii
+  type: folder
+  seq: 1
+
+request:
+  auth: inherit

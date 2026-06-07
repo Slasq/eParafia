@@ -1,0 +1,7 @@
+info:
+  name: Zarządzanie członkostwem w grupie
+  type: folder
+  seq: 2
+
+request:
+  auth: inherit

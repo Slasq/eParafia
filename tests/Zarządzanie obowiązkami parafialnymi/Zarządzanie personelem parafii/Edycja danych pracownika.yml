@@ -1,0 +1,24 @@
+info:
+  name: Edycja danych pracownika
+  type: http
+  seq: 3
+
+http:
+  method: PATCH
+  url: "{{baseUrl}}/api/employees/1"
+  body:
+    type: json
+    data: |-
+      {
+        "firstName": "Sebastian",
+        "lastName": "Malinowski-Nowak",
+        "positionId": 4,
+        "parishId": 6
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

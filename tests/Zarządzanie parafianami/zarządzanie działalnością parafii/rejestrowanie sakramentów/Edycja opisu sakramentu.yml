@@ -1,0 +1,21 @@
+info:
+  name: Edycja opisu sakramentu
+  type: http
+  seq: 6
+
+http:
+  method: PATCH
+  url: "{{baseUrl}}/api/sacraments/11"
+  body:
+    type: json
+    data: |-
+      {
+        "description": "Zaktualizowany opis sakramentu testowego"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

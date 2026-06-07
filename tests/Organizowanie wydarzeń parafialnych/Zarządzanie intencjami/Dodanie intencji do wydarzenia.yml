@@ -1,0 +1,25 @@
+info:
+  name: Dodanie intencji do wydarzenia
+  type: http
+  seq: 5
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/intentions"
+  body:
+    type: json
+    data: |-
+      {
+        "content": "Intencja testowa o zdrowie i błogosławieństwo dla rodziny Nowaków",
+        "date": "2026-07-18",
+        "donor": "Anna Nowak",
+        "status": "PLANNED",
+        "eventId": 2
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

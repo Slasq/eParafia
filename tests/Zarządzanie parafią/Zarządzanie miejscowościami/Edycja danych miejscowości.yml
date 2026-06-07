@@ -1,0 +1,22 @@
+info:
+  name: Edycja danych miejscowości
+  type: http
+  seq: 3
+
+http:
+  method: PATCH
+  url: "{{baseUrl}}/api/localities/9"
+  body:
+    type: json
+    data: |-
+      {
+        "postalCode": "35-064",
+        "voivodeship": "podkarpackie"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

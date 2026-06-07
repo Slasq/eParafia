@@ -1,0 +1,27 @@
+info:
+  name: "Dodanie adresu do rodziny "
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/family-addresses"
+  body:
+    type: json
+    data: |-
+      {
+        "street": "ul. Słoneczna",
+        "houseNumber": "27B",
+        "apartmentNumber": "8",
+        "postalCode": "31-042",
+        "city": "Krakow",
+        "familyId": 10
+        
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

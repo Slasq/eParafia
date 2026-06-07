@@ -1,0 +1,25 @@
+info:
+  name: Edycja danych parafii
+  type: http
+  seq: 4
+
+http:
+  method: PATCH
+  url: "{{baseUrl}}/api/parishes/9"
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Parafia św. Antoniego po aktualizacji",
+        "address": "ul. Franciszkańska 18",
+        "phone": "713846777",
+        "email": "kancelaria.antoni@example.test",
+        "erectionDate": "1990-09-21"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

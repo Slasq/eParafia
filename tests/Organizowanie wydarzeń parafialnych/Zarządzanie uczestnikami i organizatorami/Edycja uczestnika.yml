@@ -1,0 +1,24 @@
+info:
+  name: Edycja uczestnika
+  type: http
+  seq: 7
+
+http:
+  method: PATCH
+  url: "{{baseUrl}}/api/participants/2"
+  body:
+    type: json
+    data: |-
+      {
+        "firstName": "Rafał",
+        "lastName": "Trąbka",
+        "role": "lektor",
+        "eventId": 6
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

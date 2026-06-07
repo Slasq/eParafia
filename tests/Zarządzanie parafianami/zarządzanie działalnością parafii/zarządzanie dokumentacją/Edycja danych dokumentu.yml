@@ -1,0 +1,23 @@
+info:
+  name: Edycja danych dokumentu
+  type: http
+  seq: 3
+
+http:
+  method: PATCH
+  url: "{{baseUrl}}/api/documents/5"
+  body:
+    type: json
+    data: |-
+      {
+        "type": "Zaktualizowane zaświadczenie parafialne",
+        "issueDate": "2026-07-22",
+        "description": "Zmieniony opis dokumentu po aktualizacji danych dokumentacji"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

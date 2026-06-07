@@ -1,0 +1,24 @@
+info:
+  name: Dodanie obowiązku do stanowiska
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/duties"
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Przygotowanie zakrystii przed mszą",
+        "description": "Przygotowanie ksiąg liturgicznych, świec oraz naczyń liturgicznych przed rozpoczęciem mszy świętej",
+        "status": "ASSIGNED",
+        "positionId": 1
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -1,0 +1,24 @@
+info:
+  name: Dodanie dokumentu do kartoteki konkretnej osoby
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/documents"
+  body:
+    type: json
+    data: |-
+      {
+        "type": "Zaświadczenie o przynależności do parafii",
+        "issueDate": "2026-07-19",
+        "description": "Dokument wystawiony dla konkretnego parafianina na podstawie jego kartoteki",
+        "recordId": 1
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

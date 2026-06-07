@@ -1,0 +1,22 @@
+info:
+  name: Zmiana stanowiska i parafii pracownika
+  type: http
+  seq: 4
+
+http:
+  method: PATCH
+  url: "{{baseUrl}}/api/employees/11"
+  body:
+    type: json
+    data: |-
+      {
+        "positionId": 4,
+        "parishId": 7
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
