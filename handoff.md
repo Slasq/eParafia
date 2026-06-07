@@ -18,7 +18,7 @@ Dokument dla zespołu przejmującego dalszą pracę. Ostatnia aktualizacja stanu
 Backend **REST** do zarządzania parafią: wierni, wydarzenia, grupy, personel, sakramenty itd.  
 **Front nie jest wymagany** — wystarczą API + Bruno + H2 Console na demo.
 
-Stack: **Java 26**, **Spring Boot 4.0.6**, **JPA/Hibernate 7**, **H2** (plik), **Lombok**, **Gradle 9.4**, **springdoc-openapi 2.8.9**.
+Stack: **Java 26**, **Spring Boot 4.0.6**, **JPA/Hibernate 7**, **H2** (plik), **Lombok**, **Gradle 9.4**, **springdoc-openapi 2.8.9**, **Jackson 3** (`tools.jackson`).
 
 ---
 
@@ -98,6 +98,7 @@ Repository (JPA)  ← persystencja
 - **Agregaty** (`domain/*/Agregat.java`) — POJO (nie encje JPA), budowane w serwisach z wielu repozytoriów; zawierają obliczenia domenowe.
 - **EntityIds** (`api/support/EntityIds.java`) — `nextId(repo, getter)` zwraca `max(id) + 1`. Wywoływany wyłącznie z fabryk.
 - **ListFilterSupport** (`api/support/ListFilterSupport.java`) — helper filtrowania list po opcjonalnych parametrach query (używany w serwisach przy `list*`).
+- **PatchBodySupport** (`api/support/PatchBodySupport.java`) — parsowanie body PATCH parafii/parafianina (Jackson 3, jawne `null` na relacjach).
 
 ### API — PATCH, DELETE, filtrowanie
 
@@ -160,7 +161,7 @@ Endpointy specjalne bez zmian: `PUT .../realize`, `PUT .../complete`, `PUT .../t
 |--------|------------|
 | `EventCoordinationService` | createEvent, updateEvent, **patchEvent**, deleteEvent, assignIntention, **patchIntention**, **deleteIntention**, **realizeIntention**, addAnnouncement, **patchAnnouncement**, **deleteAnnouncement**, recordOffering, **patchOffering**, **deleteOffering**, **getOffering**, assignParticipant, **patchParticipant**, **removeParticipant**, assignOrganizer, **patchOrganizer**, **removeOrganizer**, **patchEventType**, **deleteEventType**, **patchSchedule**, **deleteSchedule**, **getSchedule**, getEventAggregate, **list\*** z filtrami |
 | `ParishInformationService` | addDiocese, updateDiocese, **patchDiocese**, **deleteDiocese**, **getDiocese**, addLocality, **updateLocality**, **patchLocality**, **deleteLocality**, addParish, updateParish, **patchParish**, **deleteParish**, registerParishioner, updateParishioner, **patchParishioner** (w tym `familyId: null`), deleteParishioner, createRecord, updateRecord, **patchRecord**, deleteRecord, addDocument, **patchDocument**, **deleteDocument**, **getDocument**, getParishionerAggregate, **list\*** z filtrami |
-| `PastoralCareService` | addFamily, updateFamilyName, **patchFamily**, **deleteFamily**, assignParishionerToFamily, addFamilyAddress (walidacja `familyId`, konflikt 409), updateFamilyAddress, **patchFamilyAddress**, **deleteFamilyAddress**, **list\*** z filtrami |
+| `PastoralCareService` | addFamily, updateFamilyName, **patchFamily**, **deleteFamily**, assignParishionerToFamily, addFamilyAddress (walidacja `familyId`, konflikt 409; też `POST /families/{id}/addresses`), updateFamilyAddress, **patchFamilyAddress**, **deleteFamilyAddress**, **list\*** z filtrami |
 | `ParishGroupService` | createGroup, updateGroup, **patchGroup**, **deleteGroup**, addMembership, **patchMembership**, **deleteMembership**, terminateMembership, getGroupAggregate, **list\*** z filtrami |
 | `ParishOperationsService` | addEmployee, **patchEmployee**, **deleteEmployee**, addPosition, **patchPosition**, **deletePosition**, **getPosition**, assignDuty, **patchDuty**, **deleteDuty**, **completeDuty**, **list\*** z filtrami |
 | `SacramentalMinistryService` | addPriest, **patchPriest**, **deletePriest**, addSacrament, **patchSacrament**, **deleteSacrament**, **getSacrament**, registerSacrament, **patchAdministration**, **deleteAdministration**, **list\*** z filtrami |
@@ -215,7 +216,7 @@ Kluczowe zależności w testach:
 - **Register Sacrament** → `parishionerId: 1`, `priestId: 1`, `sacramentId: 1`
 - **Add Employee** → `parishId: 1`, `positionId: 1`
 - **Documents filter** → `GET /api/documents?recordId=1` → dokumenty parafianina Jan Kowalski
-- **Add Family Address** → `familyId: 2` (rodzina 1 ma już adres w seedzie); wymagane pole `familyId`
+- **Add Family Address** → `POST /api/family-addresses` z `familyId: 2` lub `POST /api/families/2/addresses` (rodzina 1 ma już adres w seedzie)
 - **POST Parish** → pole `localityId` (alias `localitiesId`); wiele parafii może wskazywać tę samą miejscowość
 
 ---
@@ -283,6 +284,8 @@ src/main/java/edu/prz/eparish/
 │   └── support/
 │       ├── EntityIds.java
 │       ├── ListFilterSupport.java
+│       ├── PatchBodySupport.java       ← PATCH parafii/parafianina (Jackson 3)
+│       ├── ApiExceptionHandler.java
 │       └── OpenApiConfig.java
 ├── koordynacjawydarzen/
 │   ├── application/
@@ -355,7 +358,8 @@ H2 in-memory, `ddl-auto=create-drop` — izolacja między testami.
 
 | Data | Zmiana |
 |------|--------|
-| cze 2026 | Poprawki po testach — patrz §12 |
+| cze 2026 | Poprawki rundy 2 (PATCH 500, adres rodziny) — patrz §12 |
+| cze 2026 | Poprawki rundy 1 (GET/POST brakujące endpointy) — patrz §12 |
 | cze 2026 | PATCH + DELETE na wszystkich głównych zasobach; filtrowanie list GET po query params; `ListFilterSupport`; GET by id dla `offerings` i `sacrament-administrations` |
 | maj 2026 | Pełny refaktoring do DDD: 6 serwisów, 6 fabryk, 3 agregaty z metodami domenowymi; 20 UC; PUT/DELETE; Swagger UI |
 | maj 2026 | `ApiIntegrationTest` (9 scenariuszy), profil testowy |
@@ -377,9 +381,17 @@ Zgłoszenia testera i wprowadzone zmiany:
 | `localityId` null w odpowiedzi przy `localitiesId` w body | `@JsonAlias("localitiesId")` na requestach parafii |
 | `PATCH /api/parishioners/{id}` z `familyId: null` nie czyścił rodziny | PATCH rozpoznaje jawne `null` i ustawia `rodzina = null` |
 | `PATCH /api/parishes/{id}` — to samo dla `localityId` | Analogiczna obsługa jawnego `null` na `localityId` |
-| `POST /api/family-addresses` → 404 | Walidacja: brak `familyId` → 400; rodzina z adresem → 409; aliasy `rodzinaId` / `rodzina_id` |
+| `POST /api/family-addresses` → 404 | Walidacja: brak `familyId` → 400; rodzina z adresem → 409; aliasy `rodzinaId` / `rodzina_id`; dodano `POST /api/families/{familyId}/addresses` |
 
-Zmienione pliki (główne): `EventCoordinationController`, `ParishInformationController`, `ParishOperationsController`, `SacramentalMinistryController`, odpowiadające serwisy, `Parafia.java`, `AdresRodzinyRepozytorium.java`.
+**Runda 2 (cze 2026):**
+
+| Problem | Rozwiązanie |
+|---------|-------------|
+| `PATCH /api/parishioners/{id}` → 500 | Usunięto `JsonNode` (Jackson 2); `PatchBodySupport` + `Map` body; obsługa `familyId` i `familyId: null` |
+| `PATCH /api/parishes/{id}` → 500 | Jak wyżej; obsługa `localityId`, `localitiesId` i `localityId: null` |
+| `ObjectMapper` bean not found (build) | Brak wstrzykiwania `ObjectMapper` — helper statyczny w `PatchBodySupport` |
+
+Zmienione pliki (główne): kontrolery `api/`, serwisy, `Parafia.java`, `AdresRodzinyRepozytorium.java`, `api/support/PatchBodySupport.java`, `api/support/ApiExceptionHandler.java`.
 
 ---
 

@@ -202,7 +202,7 @@ Endpointy specjalne (bez zmian): `PUT /api/events/{eId}/intentions/{iId}/realize
 | Zarządzanie wspólnotą — dodaj rodzinę | POST / PATCH / DELETE | `/api/families` |
 | Zmiana nazwiska rodziny | PUT | `/api/families/{id}/name` |
 | Przypisanie do rodziny | PUT | `/api/parishioners/{pid}/family/{fid}` |
-| Dodanie adresu rodziny | POST / PATCH / DELETE | `/api/family-addresses` |
+| Dodanie adresu rodziny | POST / PATCH / DELETE | `/api/family-addresses`, `/api/families/{familyId}/addresses` |
 | Zmiana adresu rodziny | PUT | `/api/family-addresses/{id}` |
 | Dodaj grupę | POST / PATCH / DELETE | `/api/groups` |
 | Zmień grupę | PUT | `/api/groups/{id}` |
@@ -254,7 +254,13 @@ Niektóre zasoby można tworzyć dwoma ścieżkami — zagnieżdżoną lub z ID 
 
 **Parafia — pole miejscowości:** w body używaj `localityId` (alias JSON: `localitiesId`). Relacja parafia–miejscowość to `@ManyToOne` — wiele parafii może być w jednej miejscowości.
 
-**Adres rodziny:** wymagane pole `familyId` (aliasy: `rodzinaId`, `rodzina_id`). Model 1:1 — jedna rodzina ma jeden adres. W seedzie rodzina id=1 ma już adres; do testu POST użyj rodziny **bez adresu** (np. `familyId: 2`). Brak `familyId` → `400`, duplikat adresu → `409`.
+**Adres rodziny:** wymagane pole `familyId` (aliasy: `rodzinaId`, `rodzina_id`). Dwa endpointy POST:
+- `POST /api/family-addresses` — `familyId` w body
+- `POST /api/families/{familyId}/addresses` — `familyId` w ścieżce
+
+Model 1:1 — jedna rodzina ma jeden adres. W seedzie rodzina id=1 ma już adres; do testu POST użyj rodziny **bez adresu** (np. `familyId: 2`). Brak `familyId` → `400`, duplikat adresu → `409`.
+
+**PATCH parafii / parafianina:** działa częściowa aktualizacja pól oraz jawne `null` na `localityId` / `familyId` (odpinanie relacji). Implementacja przez `PatchBodySupport` (kompatybilność ze Spring Boot 4 / Jackson 3).
 
 ### Przykłady JSON
 
@@ -337,6 +343,32 @@ Niektóre zasoby można tworzyć dwoma ścieżkami — zagnieżdżoną lub z ID 
 }
 ```
 
+**Przypisanie parafianina do rodziny** — `PATCH /api/parishioners/2`
+```json
+{"familyId": 1}
+```
+
+**Odpięcie parafianina od rodziny** — `PATCH /api/parishioners/2`
+```json
+{"familyId": null}
+```
+
+**Zmiana miejscowości parafii** — `PATCH /api/parishes/1`
+```json
+{"localityId": 1}
+```
+
+**Adres rodziny** — `POST /api/family-addresses`
+```json
+{
+  "street": "ul. Testowa",
+  "houseNumber": "7",
+  "postalCode": "35-002",
+  "city": "Rzeszow",
+  "familyId": 2
+}
+```
+
 ---
 
 ## Testy
@@ -376,6 +408,8 @@ src/main/java/edu/prz/eparish/
 │   └── support/
 │       ├── EntityIds.java
 │       ├── ListFilterSupport.java      ← filtrowanie list po query params
+│       ├── PatchBodySupport.java       ← parsowanie body PATCH (Jackson 3)
+│       ├── ApiExceptionHandler.java    ← mapowanie błędów walidacji na 400
 │       └── OpenApiConfig.java
 ├── koordynacjawydarzen/
 │   ├── application/
@@ -431,7 +465,8 @@ src/main/java/edu/prz/eparish/
 
 | Data | Zmiana |
 |------|--------|
-| cze 2026 | Poprawki po testach: GET `/{id}` dla `schedules`, `dioceses`, `documents`, `positions`, `sacraments`; bezpośredni POST dla `offerings`, `participants`, `organizers`; PATCH z `familyId`/`localityId: null` czyści przypisanie; parafia–miejscowość `@ManyToOne`; walidacja `POST /api/family-addresses` |
+| cze 2026 | Poprawki rundy 2: PATCH parafii/parafianina naprawiony (500 → 200, `PatchBodySupport` + Jackson 3); `POST /api/families/{familyId}/addresses` |
+| cze 2026 | Poprawki rundy 1: GET `/{id}`, bezpośredni POST `offerings`/`participants`/`organizers`; PATCH `familyId`/`localityId: null`; parafia–miejscowość `@ManyToOne`; walidacja adresu rodziny |
 | cze 2026 | PATCH + DELETE na głównych zasobach; filtrowanie list GET; `ListFilterSupport` |
 | maj 2026 | Refaktoring DDD: 6 serwisów, 6 fabryk, 3 agregaty, 20 UC, Swagger UI |
 

@@ -113,7 +113,17 @@ public class PastoralCareController {
   public ResponseEntity<FamilyAddressResponse> addFamilyAddress(@RequestBody AddFamilyAddressRequest req) {
     AdresRodziny address = pastoralCareService.addFamilyAddress(new AddAddressCommand(
         req.street(), req.houseNumber(), req.apartmentNumber(),
-        req.postalCode(), req.city(), req.familyId()));
+        req.postalCode(), req.city(), req.resolveFamilyId()));
+    return ResponseEntity.status(HttpStatus.CREATED).body(toAddressResponse(address));
+  }
+
+  @PostMapping("/families/{familyId}/addresses")
+  @Operation(summary = "UC: Dodanie adresu — add family address (familyId in path)")
+  public ResponseEntity<FamilyAddressResponse> addFamilyAddressForFamily(
+      @PathVariable Long familyId, @RequestBody AddFamilyAddressBodyRequest req) {
+    AdresRodziny address = pastoralCareService.addFamilyAddress(new AddAddressCommand(
+        req.street(), req.houseNumber(), req.apartmentNumber(),
+        req.postalCode(), req.city(), familyId));
     return ResponseEntity.status(HttpStatus.CREATED).body(toAddressResponse(address));
   }
 
@@ -279,7 +289,15 @@ public class PastoralCareController {
   public record AssignmentResponse(Long parishionerId, Long familyId) {}
 
   public record AddFamilyAddressRequest(String street, String houseNumber, String apartmentNumber,
-      String postalCode, String city, @JsonAlias({"rodzinaId", "rodzina_id"}) Long familyId) {}
+      String postalCode, String city, @JsonAlias({"rodzinaId", "rodzina_id"}) Long familyId) {
+
+    public Long resolveFamilyId() {
+      return familyId;
+    }
+  }
+
+  public record AddFamilyAddressBodyRequest(String street, String houseNumber, String apartmentNumber,
+      String postalCode, String city) {}
   public record PatchFamilyAddressRequest(String street, String houseNumber, String apartmentNumber,
       String postalCode, String city) {}
   public record FamilyAddressResponse(Long id, String street, String houseNumber,
