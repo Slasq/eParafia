@@ -16,7 +16,7 @@ import edu.prz.eparish.informacjeoparafii.domain.miejscowosc.Miejscowosc;
 import edu.prz.eparish.informacjeoparafii.domain.parafia.Parafia;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import edu.prz.eparish.api.support.PatchBodySupport;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.LocalDate;
@@ -42,7 +42,6 @@ import org.springframework.web.bind.annotation.RestController;
 public class ParishInformationController {
 
   private final ParishInformationService service;
-  private final ObjectMapper objectMapper;
 
   // ── DIOCESES — UC: Dodaj diecezję ───────────────────────────────────────────
 
@@ -165,10 +164,10 @@ public class ParishInformationController {
   @PatchMapping("/parishes/{id}")
   @Operation(summary = "Partially update parish")
   public ParishResponse patchParish(@PathVariable Long id, @RequestBody JsonNode body) {
-    PatchParishRequest req = objectMapper.convertValue(body, PatchParishRequest.class);
+    PatchParishRequest req = PatchBodySupport.toValue(body, PatchParishRequest.class);
     return toParishResponse(service.patchParish(id, new ParishInformationService.PatchParishCommand(
         req.name(), req.address(), req.phone(), req.email(), req.erectionDate(),
-        body.has("localityId") || body.has("localitiesId"), req.localityId())));
+        PatchBodySupport.hasAnyField(body, "localityId", "localitiesId"), req.localityId())));
   }
 
   @DeleteMapping("/parishes/{id}")
@@ -219,11 +218,12 @@ public class ParishInformationController {
   @PatchMapping("/parishioners/{id}")
   @Operation(summary = "Partially update parishioner")
   public ParishionerResponse patchParishioner(@PathVariable Long id, @RequestBody JsonNode body) {
-    PatchParishionerRequest req = objectMapper.convertValue(body, PatchParishionerRequest.class);
+    PatchParishionerRequest req = PatchBodySupport.toValue(body, PatchParishionerRequest.class);
     return toParishionerResponse(service.patchParishioner(id,
         new ParishInformationService.PatchParishionerCommand(
             req.firstName(), req.lastName(), req.pesel(), req.birthDate(),
-            req.phone(), req.email(), req.parishId(), body.has("familyId"), req.familyId())));
+            req.phone(), req.email(), req.parishId(),
+            PatchBodySupport.hasAnyField(body, "familyId"), req.familyId())));
   }
 
   @DeleteMapping("/parishioners/{id}")
