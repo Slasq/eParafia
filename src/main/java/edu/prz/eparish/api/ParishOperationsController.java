@@ -1,12 +1,12 @@
 package edu.prz.eparish.api;
 
-import edu.prz.eparish.organizacjarolizadan.application.ParishOperationsService;
-import edu.prz.eparish.organizacjarolizadan.application.ParishOperationsService.AddEmployeeCommand;
-import edu.prz.eparish.organizacjarolizadan.application.ParishOperationsService.AddPositionCommand;
-import edu.prz.eparish.organizacjarolizadan.application.ParishOperationsService.AssignDutyCommand;
-import edu.prz.eparish.organizacjarolizadan.domain.obowiazek.Obowiazek;
-import edu.prz.eparish.organizacjarolizadan.domain.pracownik.Pracownik;
-import edu.prz.eparish.organizacjarolizadan.domain.stanowisko.Stanowisko;
+import edu.prz.eparish.staffmanagement.application.ParishOperationsService;
+import edu.prz.eparish.staffmanagement.application.ParishOperationsService.AddEmployeeCommand;
+import edu.prz.eparish.staffmanagement.application.ParishOperationsService.AddPositionCommand;
+import edu.prz.eparish.staffmanagement.application.ParishOperationsService.AssignDutyCommand;
+import edu.prz.eparish.staffmanagement.domain.duty.Duty;
+import edu.prz.eparish.staffmanagement.domain.employee.Employee;
+import edu.prz.eparish.staffmanagement.domain.position.Position;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
@@ -51,7 +51,7 @@ public class ParishOperationsController {
   @PostMapping("/employees")
   @Operation(summary = "UC: Zarządzanie personelem — add employee")
   public ResponseEntity<EmployeeResponse> addEmployee(@RequestBody AddEmployeeRequest req) {
-    Pracownik employee = service.addEmployee(
+    Employee employee = service.addEmployee(
         new AddEmployeeCommand(req.firstName(), req.lastName(), req.parishId(), req.positionId()));
     return ResponseEntity.status(HttpStatus.CREATED).body(toEmployeeResponse(employee));
   }
@@ -88,7 +88,7 @@ public class ParishOperationsController {
   @PostMapping("/positions")
   @Operation(summary = "UC: Przydzielanie stanowiska — create position")
   public ResponseEntity<PositionResponse> addPosition(@RequestBody AddPositionRequest req) {
-    Stanowisko position = service.addPosition(new AddPositionCommand(req.name(), req.description()));
+    Position position = service.addPosition(new AddPositionCommand(req.name(), req.description()));
     return ResponseEntity.status(HttpStatus.CREATED).body(toPositionResponse(position));
   }
 
@@ -119,7 +119,7 @@ public class ParishOperationsController {
   @PostMapping("/duties")
   @Operation(summary = "UC: Przydzielanie obowiązku — assign duty to position")
   public ResponseEntity<DutyResponse> addDuty(@RequestBody AddDutyRequest req) {
-    Obowiazek duty = service.assignDuty(
+    Duty duty = service.assignDuty(
         new AssignDutyCommand(req.name(), req.description(), req.positionId()));
     return ResponseEntity.status(HttpStatus.CREATED).body(toDutyResponse(duty));
   }
@@ -146,18 +146,18 @@ public class ParishOperationsController {
 
   // ── Mapping helpers ──────────────────────────────────────────────────────────
 
-  private EmployeeResponse toEmployeeResponse(Pracownik p) {
-    return new EmployeeResponse(p.getId(), p.getImie(), p.getNazwisko(),
-        p.getParafia().getId(), p.getStanowisko().getId());
+  private EmployeeResponse toEmployeeResponse(Employee p) {
+    return new EmployeeResponse(p.getId(), p.getFirstName(), p.getLastName(),
+        p.getParish().getId(), p.getPosition().getId());
   }
 
-  private PositionResponse toPositionResponse(Stanowisko s) {
-    return new PositionResponse(s.getId(), s.getNazwa(), s.getOpis());
+  private PositionResponse toPositionResponse(Position s) {
+    return new PositionResponse(s.getId(), s.getName(), s.getDescription());
   }
 
-  private DutyResponse toDutyResponse(Obowiazek o) {
-    return new DutyResponse(o.getId(), o.getNazwa(), o.getOpis(),
-        o.getStatus(), o.getStanowisko().getId());
+  private DutyResponse toDutyResponse(Duty o) {
+    return new DutyResponse(o.getId(), o.getName(), o.getDescription(),
+        o.getStatus(), o.getPosition().getId());
   }
 
   // ── Request / Response records ───────────────────────────────────────────────

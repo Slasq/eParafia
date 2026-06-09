@@ -1,19 +1,19 @@
 package edu.prz.eparish.api;
 
-import edu.prz.eparish.duszpasterstwowiernych.domain.parafianin.Parafianin;
-import edu.prz.eparish.duszpasterstwowiernych.domain.parafianin.ParafianinAgregat;
-import edu.prz.eparish.informacjeoparafii.application.ParishInformationService;
-import edu.prz.eparish.informacjeoparafii.application.ParishInformationService.AddDioceseCommand;
-import edu.prz.eparish.informacjeoparafii.application.ParishInformationService.AddDocumentCommand;
-import edu.prz.eparish.informacjeoparafii.application.ParishInformationService.AddLocalityCommand;
-import edu.prz.eparish.informacjeoparafii.application.ParishInformationService.AddParishCommand;
-import edu.prz.eparish.informacjeoparafii.application.ParishInformationService.CreateRecordCommand;
-import edu.prz.eparish.informacjeoparafii.application.ParishInformationService.RegisterParishionerCommand;
-import edu.prz.eparish.informacjeoparafii.domain.diecezja.Diecezja;
-import edu.prz.eparish.informacjeoparafii.domain.dokument.Dokument;
-import edu.prz.eparish.informacjeoparafii.domain.kartoteka.Kartoteka;
-import edu.prz.eparish.informacjeoparafii.domain.miejscowosc.Miejscowosc;
-import edu.prz.eparish.informacjeoparafii.domain.parafia.Parafia;
+import edu.prz.eparish.pastoralcare.domain.parishioner.Parishioner;
+import edu.prz.eparish.pastoralcare.domain.parishioner.ParishionerAggregate;
+import edu.prz.eparish.parishinformation.application.ParishInformationService;
+import edu.prz.eparish.parishinformation.application.ParishInformationService.AddDioceseCommand;
+import edu.prz.eparish.parishinformation.application.ParishInformationService.AddDocumentCommand;
+import edu.prz.eparish.parishinformation.application.ParishInformationService.AddLocalityCommand;
+import edu.prz.eparish.parishinformation.application.ParishInformationService.AddParishCommand;
+import edu.prz.eparish.parishinformation.application.ParishInformationService.CreateRecordCommand;
+import edu.prz.eparish.parishinformation.application.ParishInformationService.RegisterParishionerCommand;
+import edu.prz.eparish.parishinformation.domain.diocese.Diocese;
+import edu.prz.eparish.parishinformation.domain.document.Document;
+import edu.prz.eparish.parishinformation.domain.record.ParishRecord;
+import edu.prz.eparish.parishinformation.domain.locality.Locality;
+import edu.prz.eparish.parishinformation.domain.parish.Parish;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import edu.prz.eparish.api.support.PatchBodySupport;
 import io.swagger.v3.oas.annotations.Operation;
@@ -38,7 +38,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
-@Tag(name = "Parish Information", description = "Parish, diocese, parishioners, records — ParafianinAgregat")
+@Tag(name = "Parish Information", description = "Parish, diocese, parishioners, records — ParishionerAggregate")
 public class ParishInformationController {
 
   private final ParishInformationService service;
@@ -63,7 +63,7 @@ public class ParishInformationController {
   @PostMapping("/dioceses")
   @Operation(summary = "UC: Dodaj diecezję — create diocese")
   public ResponseEntity<DioceseResponse> addDiocese(@RequestBody AddDioceseRequest req) {
-    Diecezja d = service.addDiocese(new AddDioceseCommand(req.name(), req.see(), req.bishop()));
+    Diocese d = service.addDiocese(new AddDioceseCommand(req.name(), req.see(), req.bishop()));
     return ResponseEntity.status(HttpStatus.CREATED).body(toDioceseResponse(d));
   }
 
@@ -103,7 +103,7 @@ public class ParishInformationController {
   @PostMapping("/localities")
   @Operation(summary = "UC: Dodaj miejscowość — create locality")
   public ResponseEntity<LocalityResponse> addLocality(@RequestBody AddLocalityRequest req) {
-    Miejscowosc m = service.addLocality(new AddLocalityCommand(
+    Locality m = service.addLocality(new AddLocalityCommand(
         req.name(), req.postalCode(), req.province(), req.dioceseId()));
     return ResponseEntity.status(HttpStatus.CREATED).body(toLocalityResponse(m));
   }
@@ -149,7 +149,7 @@ public class ParishInformationController {
   @PostMapping("/parishes")
   @Operation(summary = "UC: Zarządzanie parafią — create parish")
   public ResponseEntity<ParishResponse> addParish(@RequestBody AddParishRequest req) {
-    Parafia p = service.addParish(new AddParishCommand(
+    Parish p = service.addParish(new AddParishCommand(
         req.name(), req.address(), req.phone(), req.email(), req.erectionDate(), req.localityId()));
     return ResponseEntity.status(HttpStatus.CREATED).body(toParishResponse(p));
   }
@@ -204,7 +204,7 @@ public class ParishInformationController {
   @PostMapping("/parishioners")
   @Operation(summary = "UC: Zarządzanie parafianami — register parishioner")
   public ResponseEntity<ParishionerResponse> addParishioner(@RequestBody AddParishionerRequest req) {
-    Parafianin p = service.registerParishioner(new RegisterParishionerCommand(
+    Parishioner p = service.registerParishioner(new RegisterParishionerCommand(
         req.firstName(), req.lastName(), req.pesel(), req.birthDate(),
         req.phone(), req.email(), req.parishId(), req.familyId()));
     return ResponseEntity.status(HttpStatus.CREATED).body(toParishionerResponse(p));
@@ -238,14 +238,14 @@ public class ParishInformationController {
     return ResponseEntity.noContent().build();
   }
 
-  // ── PARISHIONER AGGREGATE — ParafianinAgregat ────────────────────────────────
+  // ── PARISHIONER AGGREGATE — ParishionerAggregate ─────────────────────────────
 
   @GetMapping("/parishioners/{id}/aggregate")
-  @Operation(summary = "UC: ParafianinAgregat — parishioner with record and documents",
+  @Operation(summary = "UC: ParishionerAggregate — parishioner with record and documents",
       description = "Returns parishioner with associated record and all documents. "
           + "Covers UC: prowadzenie kartotek, zarządzanie dokumentacją, rejestracja zdarzeń.")
   public ParishionerAggregateResponse getParishionerAggregate(@PathVariable Long id) {
-    ParafianinAgregat agg = service.getParishionerAggregate(id);
+    ParishionerAggregate agg = service.getParishionerAggregate(id);
     return toAggregateResponse(agg);
   }
 
@@ -260,7 +260,7 @@ public class ParishInformationController {
   @PostMapping("/records")
   @Operation(summary = "UC: Prowadzenie kartotek — create record directly")
   public ResponseEntity<RecordResponse> addRecord(@RequestBody AddRecordRequest req) {
-    Kartoteka k = service.createRecordDirect(
+    ParishRecord k = service.createRecordDirect(
         new CreateRecordCommand(req.createdAt(), req.description(), req.parishionerId()));
     return ResponseEntity.status(HttpStatus.CREATED).body(toRecordResponse(k));
   }
@@ -269,7 +269,7 @@ public class ParishInformationController {
   @Operation(summary = "UC: Prowadzenie kartotek — create record for parishioner")
   public ResponseEntity<RecordResponse> createRecordForParishioner(
       @PathVariable Long id, @RequestBody AddRecordRequest req) {
-    Kartoteka k = service.createRecord(id, new CreateRecordCommand(req.createdAt(), req.description(), id));
+    ParishRecord k = service.createRecord(id, new CreateRecordCommand(req.createdAt(), req.description(), id));
     return ResponseEntity.status(HttpStatus.CREATED).body(toRecordResponse(k));
   }
 
@@ -313,7 +313,7 @@ public class ParishInformationController {
   @Operation(summary = "UC: Zarządzanie dokumentacją — add document to parishioner record")
   public ResponseEntity<DocumentResponse> addDocumentToParishioner(
       @PathVariable Long id, @RequestBody AddDocumentRequest req) {
-    Dokument d = service.addDocumentToParishioner(id,
+    Document d = service.addDocumentToParishioner(id,
         new AddDocumentCommand(req.type(), req.issueDate(), req.description(), null));
     return ResponseEntity.status(HttpStatus.CREATED).body(toDocumentResponse(d));
   }
@@ -321,7 +321,7 @@ public class ParishInformationController {
   @PostMapping("/documents")
   @Operation(summary = "UC: Zarządzanie dokumentacją — add document directly to record")
   public ResponseEntity<DocumentResponse> addDocument(@RequestBody AddDocumentRequest req) {
-    Dokument d = service.addDocumentToRecord(req.recordId(),
+    Document d = service.addDocumentToRecord(req.recordId(),
         new AddDocumentCommand(req.type(), req.issueDate(), req.description(), req.recordId()));
     return ResponseEntity.status(HttpStatus.CREATED).body(toDocumentResponse(d));
   }
@@ -348,47 +348,47 @@ public class ParishInformationController {
 
   // ── Mapping helpers ──────────────────────────────────────────────────────────
 
-  private DioceseResponse toDioceseResponse(Diecezja d) {
-    return new DioceseResponse(d.getId(), d.getNazwa(), d.getSiedziba(), d.getBiskup());
+  private DioceseResponse toDioceseResponse(Diocese d) {
+    return new DioceseResponse(d.getId(), d.getName(), d.getSee(), d.getBishop());
   }
 
-  private LocalityResponse toLocalityResponse(Miejscowosc m) {
-    Long dioceseId = m.getDiecezja() != null ? m.getDiecezja().getId() : null;
-    return new LocalityResponse(m.getId(), m.getNazwa(), m.getKodPocztowy(), m.getWojewodztwo(), dioceseId);
+  private LocalityResponse toLocalityResponse(Locality m) {
+    Long dioceseId = m.getDiocese() != null ? m.getDiocese().getId() : null;
+    return new LocalityResponse(m.getId(), m.getName(), m.getPostalCode(), m.getProvince(), dioceseId);
   }
 
-  private ParishResponse toParishResponse(Parafia p) {
-    Long localityId = p.getMiejscowosc() != null ? p.getMiejscowosc().getId() : null;
-    return new ParishResponse(p.getId(), p.getNazwa(), p.getAdres(), p.getTelefon(),
-        p.getEmail(), p.getDataErygowania(), localityId);
+  private ParishResponse toParishResponse(Parish p) {
+    Long localityId = p.getLocality() != null ? p.getLocality().getId() : null;
+    return new ParishResponse(p.getId(), p.getName(), p.getAddress(), p.getPhone(),
+        p.getEmail(), p.getFoundedDate(), localityId);
   }
 
-  private ParishionerResponse toParishionerResponse(Parafianin p) {
-    Long parishId = p.getParafia() != null ? p.getParafia().getId() : null;
-    Long familyId = p.getRodzina() != null ? p.getRodzina().getId() : null;
-    return new ParishionerResponse(p.getId(), p.getImie(), p.getNazwisko(), p.getPesel(),
-        p.getDataUrodzenia(), p.getTelefon(), p.getEmail(), parishId, familyId);
+  private ParishionerResponse toParishionerResponse(Parishioner p) {
+    Long parishId = p.getParish() != null ? p.getParish().getId() : null;
+    Long familyId = p.getFamily() != null ? p.getFamily().getId() : null;
+    return new ParishionerResponse(p.getId(), p.getFirstName(), p.getLastName(), p.getPesel(),
+        p.getBirthDate(), p.getPhone(), p.getEmail(), parishId, familyId);
   }
 
-  private RecordResponse toRecordResponse(Kartoteka k) {
-    Long parishionerId = k.getParafianin() != null ? k.getParafianin().getId() : null;
-    return new RecordResponse(k.getId(), k.getDataUtworzenia(), k.getOpis(), parishionerId);
+  private RecordResponse toRecordResponse(ParishRecord k) {
+    Long parishionerId = k.getParishioner() != null ? k.getParishioner().getId() : null;
+    return new RecordResponse(k.getId(), k.getCreatedDate(), k.getDescription(), parishionerId);
   }
 
-  private DocumentResponse toDocumentResponse(Dokument d) {
-    Long recordId = d.getKartoteka() != null ? d.getKartoteka().getId() : null;
-    return new DocumentResponse(d.getId(), d.getTyp(), d.getDataWystawienia(), d.getOpis(), recordId);
+  private DocumentResponse toDocumentResponse(Document d) {
+    Long recordId = d.getParishRecord() != null ? d.getParishRecord().getId() : null;
+    return new DocumentResponse(d.getId(), d.getType(), d.getIssueDate(), d.getDescription(), recordId);
   }
 
-  private ParishionerAggregateResponse toAggregateResponse(ParafianinAgregat a) {
-    RecordResponse rec = a.getKartoteka() != null ? toRecordResponse(a.getKartoteka()) : null;
+  private ParishionerAggregateResponse toAggregateResponse(ParishionerAggregate a) {
+    RecordResponse rec = a.getRecord() != null ? toRecordResponse(a.getRecord()) : null;
     return new ParishionerAggregateResponse(
         toParishionerResponse(a.getRoot()),
         a.hasRecord(),
         a.isProfileComplete(),
         a.documentCount(),
         rec,
-        a.getDokumenty().stream().map(this::toDocumentResponse).toList());
+        a.getDocuments().stream().map(this::toDocumentResponse).toList());
   }
 
   // ── Request / Response records ───────────────────────────────────────────────

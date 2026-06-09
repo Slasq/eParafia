@@ -1,20 +1,20 @@
 package edu.prz.eparish.api;
 
-import edu.prz.eparish.koordynacjawydarzen.application.EventCoordinationService;
-import edu.prz.eparish.koordynacjawydarzen.application.EventCoordinationService.AssignIntentionCommand;
-import edu.prz.eparish.koordynacjawydarzen.application.EventCoordinationService.AssignPersonCommand;
-import edu.prz.eparish.koordynacjawydarzen.application.EventCoordinationService.CreateEventCommand;
-import edu.prz.eparish.koordynacjawydarzen.application.EventCoordinationService.CreateScheduleCommand;
-import edu.prz.eparish.koordynacjawydarzen.application.EventCoordinationService.RecordOfferingCommand;
-import edu.prz.eparish.koordynacjawydarzen.domain.harmonogram.Harmonogram;
-import edu.prz.eparish.koordynacjawydarzen.domain.intencja.Intencja;
-import edu.prz.eparish.koordynacjawydarzen.domain.ofiara.Ofiara;
-import edu.prz.eparish.koordynacjawydarzen.domain.ogloszenie.Ogloszenie;
-import edu.prz.eparish.koordynacjawydarzen.domain.organizator.Organizator;
-import edu.prz.eparish.koordynacjawydarzen.domain.typwydarzenia.TypWydarzenia;
-import edu.prz.eparish.koordynacjawydarzen.domain.uczestnik.Uczestnik;
-import edu.prz.eparish.koordynacjawydarzen.domain.wydarzenie.WydarzenieAgregat;
-import edu.prz.eparish.koordynacjawydarzen.domain.wydarzenie.WydarzenieParafialne;
+import edu.prz.eparish.eventcoordination.application.EventCoordinationService;
+import edu.prz.eparish.eventcoordination.application.EventCoordinationService.AssignIntentionCommand;
+import edu.prz.eparish.eventcoordination.application.EventCoordinationService.AssignPersonCommand;
+import edu.prz.eparish.eventcoordination.application.EventCoordinationService.CreateEventCommand;
+import edu.prz.eparish.eventcoordination.application.EventCoordinationService.CreateScheduleCommand;
+import edu.prz.eparish.eventcoordination.application.EventCoordinationService.RecordOfferingCommand;
+import edu.prz.eparish.eventcoordination.domain.schedule.Schedule;
+import edu.prz.eparish.eventcoordination.domain.intention.Intention;
+import edu.prz.eparish.eventcoordination.domain.offering.Offering;
+import edu.prz.eparish.eventcoordination.domain.announcement.Announcement;
+import edu.prz.eparish.eventcoordination.domain.organizer.Organizer;
+import edu.prz.eparish.eventcoordination.domain.eventtype.EventType;
+import edu.prz.eparish.eventcoordination.domain.participant.Participant;
+import edu.prz.eparish.eventcoordination.domain.event.EventAggregate;
+import edu.prz.eparish.eventcoordination.domain.event.ParishEvent;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.math.BigDecimal;
@@ -39,7 +39,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
-@Tag(name = "Event Coordination", description = "Parish event management — WydarzenieAgregat (complex aggregate)")
+@Tag(name = "Event Coordination", description = "Parish event management — EventAggregate (complex aggregate)")
 public class EventCoordinationController {
 
   private final EventCoordinationService service;
@@ -66,7 +66,7 @@ public class EventCoordinationController {
   @PostMapping("/events")
   @Operation(summary = "UC: Zarządzanie wydarzeniami — create parish event")
   public ResponseEntity<EventResponse> addEvent(@RequestBody AddEventRequest req) {
-    WydarzenieParafialne event = service.createEvent(new CreateEventCommand(
+    ParishEvent event = service.createEvent(new CreateEventCommand(
         req.name(), req.dateTime(), req.place(), req.description(),
         req.parishId(), req.eventTypeId(), req.scheduleId()));
     return ResponseEntity.status(HttpStatus.CREATED).body(toEventResponse(event));
@@ -98,7 +98,7 @@ public class EventCoordinationController {
   // ── EVENT AGGREGATE ─────────────────────────────────────────────────────────
 
   @GetMapping("/events/{id}/aggregate")
-  @Operation(summary = "UC: Full WydarzenieAgregat (complex aggregate)",
+  @Operation(summary = "UC: Full EventAggregate (complex aggregate)",
       description = "Returns event with all related entities: intentions, announcements, offerings, "
           + "participants, organizers. Includes domain statistics: total offerings, "
           + "realized intention count, total engaged persons.")
@@ -129,7 +129,7 @@ public class EventCoordinationController {
   @Operation(summary = "UC: Przypisanie intencji — assign intention to event")
   public ResponseEntity<IntentionResponse> addIntentionToEvent(
       @PathVariable Long id, @RequestBody AddIntentionRequest req) {
-    Intencja intention = service.assignIntention(id,
+    Intention intention = service.assignIntention(id,
         new AssignIntentionCommand(req.content(), req.date(), req.donor()));
     return ResponseEntity.status(HttpStatus.CREATED).body(toIntentionResponse(intention));
   }
@@ -174,7 +174,7 @@ public class EventCoordinationController {
   @Operation(summary = "UC: Zarządzanie ogłoszeniami — add announcement to event")
   public ResponseEntity<AnnouncementResponse> addAnnouncementToEvent(
       @PathVariable Long id, @RequestBody AddAnnouncementRequest req) {
-    Ogloszenie announcement = service.addAnnouncement(id, req.content());
+    Announcement announcement = service.addAnnouncement(id, req.content());
     return ResponseEntity.status(HttpStatus.CREATED).body(toAnnouncementResponse(announcement));
   }
 
@@ -214,7 +214,7 @@ public class EventCoordinationController {
   @Operation(summary = "UC: Ewidencja ofiar — record offering for event")
   public ResponseEntity<OfferingResponse> addOfferingToEvent(
       @PathVariable Long id, @RequestBody AddOfferingRequest req) {
-    Ofiara offering = service.recordOffering(id,
+    Offering offering = service.recordOffering(id,
         new RecordOfferingCommand(req.amount(), req.date(), req.type()));
     return ResponseEntity.status(HttpStatus.CREATED).body(toOfferingResponse(offering));
   }
@@ -222,7 +222,7 @@ public class EventCoordinationController {
   @PostMapping("/offerings")
   @Operation(summary = "UC: Ewidencja ofiar — record offering (eventId in body)")
   public ResponseEntity<OfferingResponse> addOfferingDirect(@RequestBody AddOfferingDirectRequest req) {
-    Ofiara offering = service.recordOffering(req.eventId(),
+    Offering offering = service.recordOffering(req.eventId(),
         new RecordOfferingCommand(req.amount(), req.date(), req.type()));
     return ResponseEntity.status(HttpStatus.CREATED).body(toOfferingResponse(offering));
   }
@@ -255,7 +255,7 @@ public class EventCoordinationController {
   @Operation(summary = "UC: Przypisanie uczestników — assign participant to event")
   public ResponseEntity<ParticipantResponse> addParticipantToEvent(
       @PathVariable Long id, @RequestBody AddPersonRequest req) {
-    Uczestnik participant = service.assignParticipant(id,
+    Participant participant = service.assignParticipant(id,
         new AssignPersonCommand(req.firstName(), req.lastName(), req.role()));
     return ResponseEntity.status(HttpStatus.CREATED).body(toParticipantResponse(participant));
   }
@@ -263,7 +263,7 @@ public class EventCoordinationController {
   @PostMapping("/participants")
   @Operation(summary = "UC: Przypisanie uczestników — assign participant (eventId in body)")
   public ResponseEntity<ParticipantResponse> addParticipantDirect(@RequestBody AddPersonDirectRequest req) {
-    Uczestnik participant = service.assignParticipant(req.eventId(),
+    Participant participant = service.assignParticipant(req.eventId(),
         new AssignPersonCommand(req.firstName(), req.lastName(), req.role()));
     return ResponseEntity.status(HttpStatus.CREATED).body(toParticipantResponse(participant));
   }
@@ -296,7 +296,7 @@ public class EventCoordinationController {
   @Operation(summary = "UC: Przypisanie organizatorów — assign organizer to event")
   public ResponseEntity<OrganizerResponse> addOrganizerToEvent(
       @PathVariable Long id, @RequestBody AddPersonRequest req) {
-    Organizator organizer = service.assignOrganizer(id,
+    Organizer organizer = service.assignOrganizer(id,
         new AssignPersonCommand(req.firstName(), req.lastName(), req.role()));
     return ResponseEntity.status(HttpStatus.CREATED).body(toOrganizerResponse(organizer));
   }
@@ -304,7 +304,7 @@ public class EventCoordinationController {
   @PostMapping("/organizers")
   @Operation(summary = "UC: Przypisanie organizatorów — assign organizer (eventId in body)")
   public ResponseEntity<OrganizerResponse> addOrganizerDirect(@RequestBody AddPersonDirectRequest req) {
-    Organizator organizer = service.assignOrganizer(req.eventId(),
+    Organizer organizer = service.assignOrganizer(req.eventId(),
         new AssignPersonCommand(req.firstName(), req.lastName(), req.role()));
     return ResponseEntity.status(HttpStatus.CREATED).body(toOrganizerResponse(organizer));
   }
@@ -328,7 +328,7 @@ public class EventCoordinationController {
   @PostMapping("/intentions")
   @Operation(summary = "UC: Przypisanie intencji — create intention (eventId in body)")
   public ResponseEntity<IntentionResponse> addIntentionDirect(@RequestBody AddIntentionDirectRequest req) {
-    Intencja intention = service.assignIntention(req.eventId(),
+    Intention intention = service.assignIntention(req.eventId(),
         new AssignIntentionCommand(req.content(), req.date(), req.donor()));
     return ResponseEntity.status(HttpStatus.CREATED).body(toIntentionResponse(intention));
   }
@@ -336,7 +336,7 @@ public class EventCoordinationController {
   @PostMapping("/announcements")
   @Operation(summary = "UC: Zarządzanie ogłoszeniami — create announcement (eventId in body)")
   public ResponseEntity<AnnouncementResponse> addAnnouncementDirect(@RequestBody AddAnnouncementDirectRequest req) {
-    Ogloszenie announcement = service.addAnnouncement(req.eventId(), req.content());
+    Announcement announcement = service.addAnnouncement(req.eventId(), req.content());
     return ResponseEntity.status(HttpStatus.CREATED).body(toAnnouncementResponse(announcement));
   }
 
@@ -346,30 +346,30 @@ public class EventCoordinationController {
   @Operation(summary = "List event types (optional filter: name)")
   public List<EventTypeResponse> listEventTypes(@RequestParam(required = false) String name) {
     return service.listEventTypes(name).stream()
-        .map(t -> new EventTypeResponse(t.getId(), t.getNazwa()))
+        .map(t -> new EventTypeResponse(t.getId(), t.getName()))
         .toList();
   }
 
   @PostMapping("/event-types")
   @Operation(summary = "Create event type")
   public ResponseEntity<EventTypeResponse> addEventType(@RequestBody AddEventTypeRequest req) {
-    TypWydarzenia eventType = service.createEventType(req.name());
+    EventType eventType = service.createEventType(req.name());
     return ResponseEntity.status(HttpStatus.CREATED)
-        .body(new EventTypeResponse(eventType.getId(), eventType.getNazwa()));
+        .body(new EventTypeResponse(eventType.getId(), eventType.getName()));
   }
 
   @PutMapping("/event-types/{id}")
   @Operation(summary = "Update event type")
   public EventTypeResponse updateEventType(@PathVariable Long id, @RequestBody AddEventTypeRequest req) {
-    TypWydarzenia eventType = service.updateEventType(id, req.name());
-    return new EventTypeResponse(eventType.getId(), eventType.getNazwa());
+    EventType eventType = service.updateEventType(id, req.name());
+    return new EventTypeResponse(eventType.getId(), eventType.getName());
   }
 
   @PatchMapping("/event-types/{id}")
   @Operation(summary = "Partially update event type")
   public EventTypeResponse patchEventType(@PathVariable Long id, @RequestBody PatchEventTypeRequest req) {
-    TypWydarzenia eventType = service.patchEventType(id, req.name());
-    return new EventTypeResponse(eventType.getId(), eventType.getNazwa());
+    EventType eventType = service.patchEventType(id, req.name());
+    return new EventTypeResponse(eventType.getId(), eventType.getName());
   }
 
   @DeleteMapping("/event-types/{id}")
@@ -396,7 +396,7 @@ public class EventCoordinationController {
   @PostMapping("/schedules")
   @Operation(summary = "UC: Prowadzenie harmonogramu — create schedule")
   public ResponseEntity<ScheduleResponse> addSchedule(@RequestBody AddScheduleRequest req) {
-    Harmonogram schedule = service.createSchedule(
+    Schedule schedule = service.createSchedule(
         new CreateScheduleCommand(req.date(), req.time(), req.description()));
     return ResponseEntity.status(HttpStatus.CREATED).body(toScheduleResponse(schedule));
   }
@@ -424,48 +424,48 @@ public class EventCoordinationController {
 
   // ── Mapping helpers ──────────────────────────────────────────────────────────
 
-  private EventResponse toEventResponse(WydarzenieParafialne w) {
-    return new EventResponse(w.getId(), w.getNazwa(), w.getDataIGodzina(), w.getMiejsce(),
-        w.getOpis(), w.getParafia().getId(), w.getTypWydarzenia().getId(), w.getHarmonogram().getId());
+  private EventResponse toEventResponse(ParishEvent w) {
+    return new EventResponse(w.getId(), w.getName(), w.getDateTime(), w.getPlace(),
+        w.getDescription(), w.getParish().getId(), w.getEventType().getId(), w.getSchedule().getId());
   }
 
-  private EventAggregateResponse toAggregateResponse(WydarzenieAgregat a) {
-    WydarzenieParafialne w = a.getRoot();
+  private EventAggregateResponse toAggregateResponse(EventAggregate a) {
+    ParishEvent w = a.getRoot();
     return new EventAggregateResponse(
-        w.getId(), w.getNazwa(), w.getDataIGodzina(), w.getMiejsce(), w.getOpis(),
-        w.getParafia().getId(), w.getTypWydarzenia().getId(), w.getHarmonogram().getId(),
+        w.getId(), w.getName(), w.getDateTime(), w.getPlace(), w.getDescription(),
+        w.getParish().getId(), w.getEventType().getId(), w.getSchedule().getId(),
         a.totalOfferings(), a.realizedIntentionCount(), a.plannedIntentionCount(),
         a.totalEngaged(), a.announcementCount(),
-        a.getIntencje().stream().map(this::toIntentionResponse).toList(),
-        a.getOgloszenia().stream().map(this::toAnnouncementResponse).toList(),
-        a.getOfiary().stream().map(this::toOfferingResponse).toList(),
-        a.getUczestnicy().stream().map(this::toParticipantResponse).toList(),
-        a.getOrganizatorzy().stream().map(this::toOrganizerResponse).toList());
+        a.getIntentions().stream().map(this::toIntentionResponse).toList(),
+        a.getAnnouncements().stream().map(this::toAnnouncementResponse).toList(),
+        a.getOfferings().stream().map(this::toOfferingResponse).toList(),
+        a.getParticipants().stream().map(this::toParticipantResponse).toList(),
+        a.getOrganizers().stream().map(this::toOrganizerResponse).toList());
   }
 
-  private IntentionResponse toIntentionResponse(Intencja i) {
-    return new IntentionResponse(i.getId(), i.getTresc(), i.getData(),
-        i.getOfiarodawca(), i.getStatus(), i.getWydarzenie().getId());
+  private IntentionResponse toIntentionResponse(Intention i) {
+    return new IntentionResponse(i.getId(), i.getContent(), i.getDate(),
+        i.getDonor(), i.getStatus(), i.getEvent().getId());
   }
 
-  private AnnouncementResponse toAnnouncementResponse(Ogloszenie o) {
-    return new AnnouncementResponse(o.getId(), o.getTresc(), o.getWydarzenie().getId());
+  private AnnouncementResponse toAnnouncementResponse(Announcement o) {
+    return new AnnouncementResponse(o.getId(), o.getContent(), o.getEvent().getId());
   }
 
-  private OfferingResponse toOfferingResponse(Ofiara o) {
-    return new OfferingResponse(o.getId(), o.getKwota(), o.getData(), o.getTyp(), o.getWydarzenie().getId());
+  private OfferingResponse toOfferingResponse(Offering o) {
+    return new OfferingResponse(o.getId(), o.getAmount(), o.getDate(), o.getType(), o.getEvent().getId());
   }
 
-  private ParticipantResponse toParticipantResponse(Uczestnik u) {
-    return new ParticipantResponse(u.getId(), u.getImie(), u.getNazwisko(), u.getRola(), u.getWydarzenie().getId());
+  private ParticipantResponse toParticipantResponse(Participant u) {
+    return new ParticipantResponse(u.getId(), u.getFirstName(), u.getLastName(), u.getRole(), u.getEvent().getId());
   }
 
-  private OrganizerResponse toOrganizerResponse(Organizator o) {
-    return new OrganizerResponse(o.getId(), o.getImie(), o.getNazwisko(), o.getRola(), o.getWydarzenie().getId());
+  private OrganizerResponse toOrganizerResponse(Organizer o) {
+    return new OrganizerResponse(o.getId(), o.getFirstName(), o.getLastName(), o.getRole(), o.getEvent().getId());
   }
 
-  private ScheduleResponse toScheduleResponse(Harmonogram h) {
-    return new ScheduleResponse(h.getId(), h.getData(), h.getGodzina(), h.getOpis());
+  private ScheduleResponse toScheduleResponse(Schedule h) {
+    return new ScheduleResponse(h.getId(), h.getDate(), h.getTime(), h.getDescription());
   }
 
   // ── Request / Response records ───────────────────────────────────────────────
