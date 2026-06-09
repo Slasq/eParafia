@@ -75,20 +75,20 @@ Repository (JPA)  ← persystencja
 
 | Pakiet | Serwis | Fabryka | Agregat |
 |--------|--------|---------|---------|
-| `koordynacjawydarzen` | `EventCoordinationService` | `EventFactory` | `WydarzenieAgregat` *(złożony)* |
-| `informacjeoparafii` | `ParishInformationService` | `ParishInfoFactory` | `ParafianinAgregat` |
-| `duszpasterstwowiernych` | `PastoralCareService` | `PastoralCareFactory` | — |
-| `grupyparafialne` | `ParishGroupService` | `ParishGroupFactory` | `GrupaParafialnaAgregat` |
-| `organizacjarolizadan` | `ParishOperationsService` | `StaffFactory` | — |
-| `poslugasakramentalna` | `SacramentalMinistryService` | `SacramentalMinistryFactory` | — |
+| `eventcoordination` | `EventCoordinationService` | `EventFactory` | `EventAggregate` *(złożony)* |
+| `parishinformation` | `ParishInformationService` | `ParishInfoFactory` | `ParishionerAggregate` |
+| `pastoralcare` | `PastoralCareService` | `PastoralCareFactory` | — |
+| `parishgroups` | `ParishGroupService` | `ParishGroupFactory` | `ParishGroupAggregate` |
+| `staffmanagement` | `ParishOperationsService` | `StaffFactory` | — |
+| `sacramentalministry` | `SacramentalMinistryService` | `SacramentalMinistryFactory` | — |
 
 ### Agregaty domenowe
 
 | Agregat | Encje składowe | Endpoint |
 |---------|---------------|----------|
-| `WydarzenieAgregat` *(złożony)* | WydarzenieParafialne + Intencja + Ogloszenie + Ofiara + Uczestnik + Organizator | `GET /api/events/{id}/aggregate` |
-| `ParafianinAgregat` | Parafianin + Kartoteka + Dokument | `GET /api/parishioners/{id}/aggregate` |
-| `GrupaParafialnaAgregat` | GrupaParafialna + Czlonkostwo | `GET /api/groups/{id}/aggregate` |
+| `EventAggregate` *(złożony)* | ParishEvent + Intention + Announcement + Offering + Participant + Organizer | `GET /api/events/{id}/aggregate` |
+| `ParishionerAggregate` | Parishioner + ParishRecord + Document | `GET /api/parishioners/{id}/aggregate` |
+| `ParishGroupAggregate` | ParishGroup + Membership | `GET /api/groups/{id}/aggregate` |
 
 ### Reguły architektury (ważne!)
 
@@ -256,8 +256,6 @@ Brakuje requestów Bruno dla wielu endpointów — do dopisania przez testera, m
 ### Opcjonalne / jakość
 
 - [ ] Walidacja `@Valid` + `@NotBlank` / `@NotNull` na request DTO
-- [ ] Lepsze generowanie ID (sekwencje JPA zamiast `EntityIds.nextId()`)
-- [ ] Front (HTML / Thymeleaf) — tylko jeśli prowadzący wymaga
 - [ ] Usunąć `docs/jdk-26_windows-x64_bin.exe` z repo (duży plik binarny)
 
 ### Znane ograniczenia techniczne
@@ -287,35 +285,35 @@ src/main/java/edu/prz/eparish/
 │       ├── PatchBodySupport.java       ← PATCH parafii/parafianina (Jackson 3)
 │       ├── ApiExceptionHandler.java
 │       └── OpenApiConfig.java
-├── koordynacjawydarzen/
+├── eventcoordination/
 │   ├── application/
 │   │   ├── EventFactory.java
 │   │   └── EventCoordinationService.java
 │   └── domain/
-│       └── wydarzenie/WydarzenieAgregat.java
-├── informacjeoparafii/
+│       └── event/EventAggregate.java
+├── parishinformation/
 │   ├── application/
 │   │   ├── ParishInfoFactory.java
 │   │   └── ParishInformationService.java
 │   └── domain/...
-├── duszpasterstwowiernych/
+├── pastoralcare/
 │   ├── application/
 │   │   ├── PastoralCareFactory.java
 │   │   └── PastoralCareService.java
 │   └── domain/
-│       └── parafianin/ParafianinAgregat.java
-├── grupyparafialne/
+│       └── parishioner/ParishionerAggregate.java
+├── parishgroups/
 │   ├── application/
 │   │   ├── ParishGroupFactory.java
 │   │   └── ParishGroupService.java
 │   └── domain/
-│       └── grupa/GrupaParafialnaAgregat.java
-├── organizacjarolizadan/
+│       └── group/ParishGroupAggregate.java
+├── staffmanagement/
 │   ├── application/
 │   │   ├── StaffFactory.java
 │   │   └── ParishOperationsService.java
 │   └── domain/...
-└── poslugasakramentalna/
+└── sacramentalministry/
     ├── application/
     │   ├── SacramentalMinistryFactory.java
     │   └── SacramentalMinistryService.java
@@ -358,6 +356,7 @@ H2 in-memory, `ddl-auto=create-drop` — izolacja między testami.
 
 | Data | Zmiana |
 |------|--------|
+| cze 2026 | Anglifikacja kodu: pakiety, klasy, pola encji, tabele DB (24 encje, 24 repozytoria, 3 agregaty) |
 | cze 2026 | Poprawki rundy 2 (PATCH 500, adres rodziny) — patrz §12 |
 | cze 2026 | Poprawki rundy 1 (GET/POST brakujące endpointy) — patrz §12 |
 | cze 2026 | PATCH + DELETE na wszystkich głównych zasobach; filtrowanie list GET po query params; `ListFilterSupport`; GET by id dla `offerings` i `sacrament-administrations` |
