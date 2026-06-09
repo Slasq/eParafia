@@ -1,12 +1,12 @@
 package edu.prz.eparish.api;
 
-import edu.prz.eparish.poslugasakramentalna.application.SacramentalMinistryService;
-import edu.prz.eparish.poslugasakramentalna.application.SacramentalMinistryService.AddPriestCommand;
-import edu.prz.eparish.poslugasakramentalna.application.SacramentalMinistryService.AddSacramentCommand;
-import edu.prz.eparish.poslugasakramentalna.application.SacramentalMinistryService.RegisterSacramentCommand;
-import edu.prz.eparish.poslugasakramentalna.domain.ksiadz.Ksiadz;
-import edu.prz.eparish.poslugasakramentalna.domain.sakrament.Sakrament;
-import edu.prz.eparish.poslugasakramentalna.domain.udzielaniesakramentu.UdzielanieSakramentu;
+import edu.prz.eparish.sacramentalministry.application.SacramentalMinistryService;
+import edu.prz.eparish.sacramentalministry.application.SacramentalMinistryService.AddPriestCommand;
+import edu.prz.eparish.sacramentalministry.application.SacramentalMinistryService.AddSacramentCommand;
+import edu.prz.eparish.sacramentalministry.application.SacramentalMinistryService.RegisterSacramentCommand;
+import edu.prz.eparish.sacramentalministry.domain.priest.Priest;
+import edu.prz.eparish.sacramentalministry.domain.sacrament.Sacrament;
+import edu.prz.eparish.sacramentalministry.domain.sacramentadministration.SacramentAdministration;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.LocalDate;
@@ -51,7 +51,7 @@ public class SacramentalMinistryController {
   @PostMapping("/priests")
   @Operation(summary = "UC: Zarządzanie personelem — add priest")
   public ResponseEntity<PriestResponse> addPriest(@RequestBody AddPriestRequest req) {
-    Ksiadz priest = service.addPriest(new AddPriestCommand(
+    Priest priest = service.addPriest(new AddPriestCommand(
         req.firstName(), req.lastName(), req.phone(), req.email(),
         req.ordinationDate(), req.role(), req.parishId()));
     return ResponseEntity.status(HttpStatus.CREATED).body(toPriestResponse(priest));
@@ -79,31 +79,31 @@ public class SacramentalMinistryController {
   @Operation(summary = "List sacraments (optional filter: name)")
   public List<SacramentResponse> listSacraments(@RequestParam(required = false) String name) {
     return service.listSacraments(name).stream()
-        .map(s -> new SacramentResponse(s.getId(), s.getNazwa(), s.getOpis()))
+        .map(s -> new SacramentResponse(s.getId(), s.getName(), s.getDescription()))
         .toList();
   }
 
   @GetMapping("/sacraments/{id}")
   @Operation(summary = "Get sacrament by ID")
   public SacramentResponse getSacrament(@PathVariable Long id) {
-    Sakrament sacrament = service.getSacrament(id);
-    return new SacramentResponse(sacrament.getId(), sacrament.getNazwa(), sacrament.getOpis());
+    Sacrament sacrament = service.getSacrament(id);
+    return new SacramentResponse(sacrament.getId(), sacrament.getName(), sacrament.getDescription());
   }
 
   @PostMapping("/sacraments")
   @Operation(summary = "Create sacrament type")
   public ResponseEntity<SacramentResponse> addSacrament(@RequestBody AddSacramentRequest req) {
-    Sakrament sacrament = service.addSacrament(new AddSacramentCommand(req.name(), req.description()));
+    Sacrament sacrament = service.addSacrament(new AddSacramentCommand(req.name(), req.description()));
     return ResponseEntity.status(HttpStatus.CREATED)
-        .body(new SacramentResponse(sacrament.getId(), sacrament.getNazwa(), sacrament.getOpis()));
+        .body(new SacramentResponse(sacrament.getId(), sacrament.getName(), sacrament.getDescription()));
   }
 
   @PatchMapping("/sacraments/{id}")
   @Operation(summary = "Partially update sacrament")
   public SacramentResponse patchSacrament(@PathVariable Long id, @RequestBody PatchSacramentRequest req) {
-    Sakrament sacrament = service.patchSacrament(id,
+    Sacrament sacrament = service.patchSacrament(id,
         new SacramentalMinistryService.PatchSacramentCommand(req.name(), req.description()));
-    return new SacramentResponse(sacrament.getId(), sacrament.getNazwa(), sacrament.getOpis());
+    return new SacramentResponse(sacrament.getId(), sacrament.getName(), sacrament.getDescription());
   }
 
   @DeleteMapping("/sacraments/{id}")
@@ -129,7 +129,7 @@ public class SacramentalMinistryController {
   @PostMapping("/sacrament-administrations")
   @Operation(summary = "UC: Rejestrowanie sakramentów — register sacrament administration")
   public ResponseEntity<AdministrationResponse> registerSacrament(@RequestBody AddAdministrationRequest req) {
-    UdzielanieSakramentu admin = service.registerSacrament(new RegisterSacramentCommand(
+    SacramentAdministration admin = service.registerSacrament(new RegisterSacramentCommand(
         req.administrationDate(), req.parishionerId(), req.priestId(), req.sacramentId()));
     return ResponseEntity.status(HttpStatus.CREATED).body(toAdministrationResponse(admin));
   }
@@ -158,15 +158,15 @@ public class SacramentalMinistryController {
 
   // ── Mapping helpers ──────────────────────────────────────────────────────────
 
-  private PriestResponse toPriestResponse(Ksiadz k) {
-    Long parishId = k.getParafia() != null ? k.getParafia().getId() : null;
-    return new PriestResponse(k.getId(), k.getImie(), k.getNazwisko(), k.getTelefon(),
-        k.getEmail(), k.getDataSwiecen(), k.getFunkcja(), parishId);
+  private PriestResponse toPriestResponse(Priest k) {
+    Long parishId = k.getParish() != null ? k.getParish().getId() : null;
+    return new PriestResponse(k.getId(), k.getFirstName(), k.getLastName(), k.getPhone(),
+        k.getEmail(), k.getOrdinationDate(), k.getRole(), parishId);
   }
 
-  private AdministrationResponse toAdministrationResponse(UdzielanieSakramentu u) {
-    return new AdministrationResponse(u.getId(), u.getDataUdzielenia(),
-        u.getParafianinId().wartosc(), u.getKsiadzId().wartosc(), u.getSakramentId().wartosc());
+  private AdministrationResponse toAdministrationResponse(SacramentAdministration u) {
+    return new AdministrationResponse(u.getId(), u.getAdministrationDate(),
+        u.getParishionerId().value(), u.getPriestId().value(), u.getSacramentId().value());
   }
 
   // ── Request / Response records ───────────────────────────────────────────────

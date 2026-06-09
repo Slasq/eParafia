@@ -1,16 +1,16 @@
 package edu.prz.eparish.api;
 
-import edu.prz.eparish.duszpasterstwowiernych.application.PastoralCareService;
-import edu.prz.eparish.duszpasterstwowiernych.application.PastoralCareService.AddAddressCommand;
-import edu.prz.eparish.duszpasterstwowiernych.application.PastoralCareService.AddFamilyCommand;
-import edu.prz.eparish.duszpasterstwowiernych.domain.adresrodziny.AdresRodziny;
-import edu.prz.eparish.duszpasterstwowiernych.domain.rodzina.Rodzina;
-import edu.prz.eparish.grupyparafialne.application.ParishGroupService;
-import edu.prz.eparish.grupyparafialne.application.ParishGroupService.AddMembershipCommand;
-import edu.prz.eparish.grupyparafialne.application.ParishGroupService.CreateGroupCommand;
-import edu.prz.eparish.grupyparafialne.domain.czlonkostwo.Czlonkostwo;
-import edu.prz.eparish.grupyparafialne.domain.grupa.GrupaParafialna;
-import edu.prz.eparish.grupyparafialne.domain.grupa.GrupaParafialnaAgregat;
+import edu.prz.eparish.pastoralcare.application.PastoralCareService;
+import edu.prz.eparish.pastoralcare.application.PastoralCareService.AddAddressCommand;
+import edu.prz.eparish.pastoralcare.application.PastoralCareService.AddFamilyCommand;
+import edu.prz.eparish.pastoralcare.domain.familyaddress.FamilyAddress;
+import edu.prz.eparish.pastoralcare.domain.family.Family;
+import edu.prz.eparish.parishgroups.application.ParishGroupService;
+import edu.prz.eparish.parishgroups.application.ParishGroupService.AddMembershipCommand;
+import edu.prz.eparish.parishgroups.application.ParishGroupService.CreateGroupCommand;
+import edu.prz.eparish.parishgroups.domain.membership.Membership;
+import edu.prz.eparish.parishgroups.domain.group.ParishGroup;
+import edu.prz.eparish.parishgroups.domain.group.ParishGroupAggregate;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -33,7 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
-@Tag(name = "Pastoral Care & Groups", description = "Families, groups, memberships — GrupaParafialnaAgregat")
+@Tag(name = "Pastoral Care & Groups", description = "Families, groups, memberships — ParishGroupAggregate")
 public class PastoralCareController {
 
   private final PastoralCareService pastoralCareService;
@@ -56,7 +56,7 @@ public class PastoralCareController {
   @PostMapping("/families")
   @Operation(summary = "UC: Zarządzanie wspólnotą — add family")
   public ResponseEntity<FamilyResponse> addFamily(@RequestBody AddFamilyRequest req) {
-    Rodzina family = pastoralCareService.addFamily(new AddFamilyCommand(req.familyName(), req.memberCount()));
+    Family family = pastoralCareService.addFamily(new AddFamilyCommand(req.familyName(), req.memberCount()));
     return ResponseEntity.status(HttpStatus.CREATED).body(toFamilyResponse(family));
   }
 
@@ -111,7 +111,7 @@ public class PastoralCareController {
   @PostMapping("/family-addresses")
   @Operation(summary = "UC: Dodanie adresu — add family address")
   public ResponseEntity<FamilyAddressResponse> addFamilyAddress(@RequestBody AddFamilyAddressRequest req) {
-    AdresRodziny address = pastoralCareService.addFamilyAddress(new AddAddressCommand(
+    FamilyAddress address = pastoralCareService.addFamilyAddress(new AddAddressCommand(
         req.street(), req.houseNumber(), req.apartmentNumber(),
         req.postalCode(), req.city(), req.resolveFamilyId()));
     return ResponseEntity.status(HttpStatus.CREATED).body(toAddressResponse(address));
@@ -121,7 +121,7 @@ public class PastoralCareController {
   @Operation(summary = "UC: Dodanie adresu — add family address (familyId in path)")
   public ResponseEntity<FamilyAddressResponse> addFamilyAddressForFamily(
       @PathVariable Long familyId, @RequestBody AddFamilyAddressBodyRequest req) {
-    AdresRodziny address = pastoralCareService.addFamilyAddress(new AddAddressCommand(
+    FamilyAddress address = pastoralCareService.addFamilyAddress(new AddAddressCommand(
         req.street(), req.houseNumber(), req.apartmentNumber(),
         req.postalCode(), req.city(), familyId));
     return ResponseEntity.status(HttpStatus.CREATED).body(toAddressResponse(address));
@@ -131,7 +131,7 @@ public class PastoralCareController {
   @Operation(summary = "UC: Zmiana adresu — update family address")
   public FamilyAddressResponse updateFamilyAddress(
       @PathVariable Long id, @RequestBody AddFamilyAddressRequest req) {
-    AdresRodziny address = pastoralCareService.updateFamilyAddress(id, new AddAddressCommand(
+    FamilyAddress address = pastoralCareService.updateFamilyAddress(id, new AddAddressCommand(
         req.street(), req.houseNumber(), req.apartmentNumber(),
         req.postalCode(), req.city(), req.familyId()));
     return toAddressResponse(address);
@@ -172,7 +172,7 @@ public class PastoralCareController {
   @PostMapping("/groups")
   @Operation(summary = "UC: Dodaj grupę — create parish group")
   public ResponseEntity<GroupResponse> createGroup(@RequestBody CreateGroupRequest req) {
-    GrupaParafialna group = groupService.createGroup(
+    ParishGroup group = groupService.createGroup(
         new CreateGroupCommand(req.name(), req.description(), req.supervisor()));
     return ResponseEntity.status(HttpStatus.CREATED).body(toGroupResponse(group));
   }
@@ -198,14 +198,14 @@ public class PastoralCareController {
     return ResponseEntity.noContent().build();
   }
 
-  // ── GROUP AGGREGATE — GrupaParafialnaAgregat ─────────────────────────────────
+  // ── GROUP AGGREGATE — ParishGroupAggregate ───────────────────────────────────
 
   @GetMapping("/groups/{id}/aggregate")
-  @Operation(summary = "UC: GrupaParafialnaAgregat — group with memberships",
+  @Operation(summary = "UC: ParishGroupAggregate — group with memberships",
       description = "Returns group with all memberships. Domain methods: activeMembers(), "
           + "formerMembers(), isMember(), activeMembersAt(date).")
   public GroupAggregateResponse getGroupAggregate(@PathVariable Long id) {
-    GrupaParafialnaAgregat agg = groupService.getGroupAggregate(id);
+    ParishGroupAggregate agg = groupService.getGroupAggregate(id);
     return toGroupAggregateResponse(agg);
   }
 
@@ -223,7 +223,7 @@ public class PastoralCareController {
   @PostMapping("/memberships")
   @Operation(summary = "UC: Dodaj członkostwo — add membership (with optional dates)")
   public ResponseEntity<MembershipResponse> addMembership(@RequestBody AddMembershipRequest req) {
-    Czlonkostwo membership = groupService.addMembership(
+    Membership membership = groupService.addMembership(
         new AddMembershipCommand(req.groupId(), req.parishionerId(), req.startDate(), req.endDate()));
     return ResponseEntity.status(HttpStatus.CREATED).body(toMembershipResponse(membership));
   }
@@ -252,31 +252,31 @@ public class PastoralCareController {
 
   // ── Mapping helpers ──────────────────────────────────────────────────────────
 
-  private FamilyResponse toFamilyResponse(Rodzina r) {
-    return new FamilyResponse(r.getId(), r.getNazwiskoRodziny(), r.getLiczbaCzlonkow());
+  private FamilyResponse toFamilyResponse(Family r) {
+    return new FamilyResponse(r.getId(), r.getFamilyName(), r.getMemberCount());
   }
 
-  private FamilyAddressResponse toAddressResponse(AdresRodziny a) {
-    return new FamilyAddressResponse(a.getId(), a.getUlica(), a.getNumerDomu(),
-        a.getNumerMieszkania(), a.getKodPocztowy(), a.getMiasto(), a.getRodzina().getId());
+  private FamilyAddressResponse toAddressResponse(FamilyAddress a) {
+    return new FamilyAddressResponse(a.getId(), a.getStreet(), a.getHouseNumber(),
+        a.getApartmentNumber(), a.getPostalCode(), a.getCity(), a.getFamily().getId());
   }
 
-  private GroupResponse toGroupResponse(GrupaParafialna g) {
-    return new GroupResponse(g.getId(), g.getNazwa(), g.getOpis(), g.getOpiekun());
+  private GroupResponse toGroupResponse(ParishGroup g) {
+    return new GroupResponse(g.getId(), g.getName(), g.getDescription(), g.getSupervisor());
   }
 
-  private MembershipResponse toMembershipResponse(Czlonkostwo c) {
-    return new MembershipResponse(c.getId(), c.getDataOdKiedy(), c.getDataDoKiedy(),
-        c.getGrupa().getId(), c.getParafianin().getId());
+  private MembershipResponse toMembershipResponse(Membership c) {
+    return new MembershipResponse(c.getId(), c.getStartDate(), c.getEndDate(),
+        c.getGroup().getId(), c.getParishioner().getId());
   }
 
-  private GroupAggregateResponse toGroupAggregateResponse(GrupaParafialnaAgregat agg) {
+  private GroupAggregateResponse toGroupAggregateResponse(ParishGroupAggregate agg) {
     return new GroupAggregateResponse(
         toGroupResponse(agg.getRoot()),
         agg.totalMemberCount(),
         agg.activeMembers().size(),
         agg.formerMembers().size(),
-        agg.getCzlonkostwa().stream().map(this::toMembershipResponse).toList());
+        agg.getMemberships().stream().map(this::toMembershipResponse).toList());
   }
 
   // ── Request / Response records ───────────────────────────────────────────────
